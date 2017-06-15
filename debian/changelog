@@ -1,0 +1,141 @@
+hashcat (3.60-1) unstable; urgency=medium
+
+  * Team upload.
+
+  [ Sophie Brun ]
+  * debian/control: drop depends on mesa-opencl-icd as it's not compatible
+    with beignet-opencl-icd and replace it with pocl-opencl-icd. Add all
+    relevant *-opencl-icd in Suggests as a hint that the user should install
+    the appropriate package for its hardware.
+
+  [ Paul Wise ]
+  * Fix apostrophe in description
+
+  [ philipp ]
+  * Fix package description (Closes: #855687)
+  * Make URLS in https mode.
+
+  [ Raphaël Hertzog ]
+  * New upstream release.
+  * Updated watch file to work around broken versioning scheme
+    (https://github.com/hashcat/hashcat/issues/1275).
+  * Update patches (reuse work made in Kali).
+  * Update copyright file.
+  * Stop installing libhashcat.so. It's not used by the hashcat binary and has
+    no stable API.
+
+ -- Raphaël Hertzog <hertzog@debian.org>  Thu, 15 Jun 2017 17:21:21 +0200
+
+hashcat (3.30-1) unstable; urgency=medium
+
+  [ Samuel Henrique ]
+  * Team upload.
+  * New upstream version 3.30.
+  * wrap-and-sort -a.
+  * d/rules: Remove trailing whitespace.
+  * d/copyright: Update copyright.
+  * d/patches:
+    - add_kfreebsd_support.diff: Update and Refresh.
+    - fix_makefile.patch: Refresh.
+
+  [ Lorenzo "Palinuro" Faletra ]
+  * Include libhashcat.so in hashcat binary package.
+
+  [ Raphaël Hertzog ]
+  * Install libhashcat.so in /usr/lib/hashcat. It's not clean enough
+    to be supported as a public library.
+  * Drop -march=native from the Makefile. Closes: #851497
+
+ -- Raphaël Hertzog <hertzog@debian.org>  Thu, 19 Jan 2017 18:00:19 +0100
+
+hashcat (3.20-1) unstable; urgency=medium
+
+  * New upstream release.
+  * Bump DH level to 10.
+  * debian/patches:
+    + Refresh all patches files.
+
+ -- Daniel Echeverry <epsilon77@gmail.com>  Tue, 27 Dec 2016 23:12:20 -0500
+
+hashcat (3.10-1) unstable; urgency=medium
+
+  [ Gianfranco Costamagna ]
+  * Team upload.
+  * Add gbp.conf file.
+
+  [ Daniel Echeverry ]
+  * New upstream release.
+  * debian/rules
+    + Support reproducible builds. (Closes: #833056)
+      + Thanks to Reiner Herrmann for the patch!.
+  * debian/control
+    + Remove article "The" from description to fix lintian warning.
+    + Add support to kFreeBSD.
+  * debian/patches
+    + Refresh fix_makefile.diff patch.
+    + Add add_kfreebsd_support.diff patch.
+      + Thanks to Steven Chamberlain for the patch.
+
+ -- Daniel Echeverry <epsilon77@gmail.com>  Mon, 05 Sep 2016 19:35:27 -0500
+
+hashcat (3.00-3) unstable; urgency=medium
+
+  [ Daniel Echeverry ]
+  * debian/control
+    + Add Replaces field in hashcat-data.
+    + Improve description of hashcat and hashcat-data.
+
+  [ Raphaël Hertzog ]
+  * Further improve the description field.
+
+ -- Daniel Echeverry <epsilon77@gmail.com>  Tue, 12 Jul 2016 15:57:02 -0500
+
+hashcat (3.00-2) unstable; urgency=medium
+
+  * debian/rules
+    + Fix FTBFS with dpkg-buildpackage -B (Closes: #830832)
+
+ -- Daniel Echeverry <epsilon77@gmail.com>  Mon, 11 Jul 2016 21:08:12 -0500
+
+hashcat (3.00-1) unstable; urgency=medium
+
+  * New upstream release.
+  * debian/control
+    + Add Debian Security Tools Packaging Team as maintainer.
+    + Add Vcs-* Field.
+    + Add opencl-headers in B-D.
+    + Add mesa-opencl-icd | opencl-icd in Depends.
+  * Remove hashcat-xop.1 file.
+    + Because this version doesn't have hashcat-xop binary.
+  * Add new extra documentation.
+  * Update hashcat-data.examples to install new examples.
+  * Update hashcat-data.install to install new files.
+  * debian/patches
+    + Update fix_makefile.patch.
+  * debian/copyright
+    + Add copyright holders.
+    + Use License-Grant field.
+  * debian/rules
+    + Now hashcat doesn't have hashcat-xop feature
+    + Remove override_dh_install because isn't necessary
+    + Remove override_dh_installman because isn't necessary
+    + Add override_dh_fixperms to fix some lintian warning
+  * Add README.Debian File
+    
+ -- Daniel Echeverry <epsilon77@gmail.com>  Thu, 30 Jun 2016 11:07:00 -0500
+
+hashcat (2.00-2) unstable; urgency=medium
+
+  * debian/control
+    + Change arch field to linux-i386 and linux-amd64 because
+      hashcat only works with processors that support SSE2
+  * debian/rules
+    + Create dir to prevent FTBFS
+
+ -- Daniel Echeverry <epsilon77@gmail.com>  Thu, 12 May 2016 10:38:42 -0500
+
+hashcat (2.00-1) unstable; urgency=medium
+
+  * Initial release (Closes: #819459)
+
+ -- Daniel Echeverry <epsilon77@gmail.com>  Tue, 19 Apr 2016 23:08:10 -0500

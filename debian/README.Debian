@@ -1,0 +1,21 @@
+Now Hashcat 3.00 uses OpenCL and requires:
+
+AMD users require AMD drivers 14.9 or later (recommended 15.12)
+Intel users require Intel OpenCL Runtime 14.2 or later (recommended 16.2 or later)
+NVidia users require NVidia drivers 346.59 or later (recommended 367.27 or later)
+
+To get hashcat running you need two things running: The base OpenCL installation and 
+a special OpenCL runtime for your device. This one is provided by the vendor. 
+However some of these are available in Debian. 
+
+For the Intel Users should install beignet-OpenCL-icd That's the Intel
+driver we have in Debian.
+
+For the NVIDIA Users should instal nvidia-opencl-icd that's the NVIDIA
+driver we have in Debian.
+
+An alternative variant is the OSS general implementations to provide the OpenCL runtime, like POCL. 
+However when it comes to hashcat, you probably use it because of it's high speed. 
+The Intel OpenCL runtime is like 2-3 times faster than POCL.
+
+For more info about OpenCL Runtime: https://wiki.tiker.net/OpenCLHowTo

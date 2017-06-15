@@ -1,0 +1,84 @@
+From: Steven Chamberlain <steven@pyro.eu.org>
+Date: Thu, 19 Jan 2017 16:49:39 +0100
+Subject: Add support of kFreeBSD
+
+Last-Update: 2016-12-04
+---
+ include/common.h     | 2 +-
+ include/ext_OpenCL.h | 2 +-
+ include/sort_r.h     | 2 +-
+ src/Makefile         | 8 +++++---
+ src/folder.c         | 2 +-
+ src/shared.c         | 7 ++++++-
+ 6 files changed, 15 insertions(+), 8 deletions(-)
+
+--- a/include/sort_r.h
++++ b/include/sort_r.h
+@@ -25,7 +25,7 @@ Slightly modified to work with hashcat t
+ */
+ 
+ #if (defined __APPLE__ || defined __MACH__ || defined __DARWIN__ || \
+-     defined __FreeBSD__ || defined __DragonFly__)
++     defined __FreeBSD__ || defined __FreeBSD_kernel__ || defined __DragonFly__)
+ #  define _SORT_R_BSD
+ #  define _SORT_R_INLINE inline
+ #elif (defined __linux__) || defined (__CYGWIN__)
+--- a/src/Makefile
++++ b/src/Makefile
+@@ -16,6 +16,9 @@ UNAME                   := $(shell uname
+ # we need to strip the windows version number to be able to build hashcat on cygwin hosts
+ UNAME                   := $(patsubst CYGWIN_NT-%,CYGWIN,$(UNAME))
+ 
++# :XXX: treat GNU/kFreeBSD, Hurd and Linux
++UNAME                    := $(patsubst GNU%,Linux,$(UNAME))
++
+ # same for msys
+ UNAME                   := $(patsubst MSYS_NT-%,MSYS2,$(UNAME))
+ UNAME                   := $(patsubst MINGW32_NT-%,MSYS2,$(UNAME))
+@@ -94,8 +97,8 @@ SED_IN_PLACE            := -i ""
+ endif
+ 
+ ifeq ($(UNAME),FreeBSD)
+-CC                      := cc
+-SED                     := gsed
++CC                      := gcc
++SED                     := sed
+ endif
+ 
+ ##
+--- a/src/folder.c
++++ b/src/folder.c
+@@ -50,7 +50,7 @@ static int get_exec_path (char *exec_pat
+ 
+   const size_t len = strlen (exec_path);
+ 
+-  #elif defined (__FreeBSD__)
++  #elif defined (__FreeBSD__) || defined(__FreeBSD_kernel__)
+ 
+   #include <sys/sysctl.h>
+ 
+--- a/src/shared.c
++++ b/src/shared.c
+@@ -57,6 +57,11 @@ bool overflow_check_u64_mul (const u64 a
+   return ((a_msb + b_msb) < 64);
+ }
+ 
++#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
++#include <sys/types.h>
++#include <sys/sysctl.h>
++#endif
++
+ bool is_power_of_2 (const u32 v)
+ {
+   return (v && !(v & (v - 1)));
+--- a/src/affinity.c
++++ b/src/affinity.c
+@@ -40,7 +40,7 @@ static int pthread_setaffinity_np (pthre
+ }
+ #endif
+ 
+-#if defined (__FreeBSD__)
++#if defined (__FreeBSD_kernel__)
+ #include <pthread_np.h>
+ typedef cpuset_t cpu_set_t;
+ #endif

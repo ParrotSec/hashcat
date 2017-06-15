@@ -1,0 +1,59 @@
+From: Sophie Brun <sophie@freexian.com>
+Date: Thu, 19 Jan 2017 16:49:39 +0100
+Subject: Fix Makefile to suit our needs
+
+* Inject CPPFLAGS and LDFLAGS where appropriate for better hardening.
+
+Origin: vendor
+Last-Update: 2017-01-19
+---
+ src/Makefile | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)
+
+--- a/src/Makefile
++++ b/src/Makefile
+@@ -188,7 +188,7 @@ endif
+ ##
+ 
+ ifeq ($(UNAME),Linux)
+-CFLAGS_NATIVE           := $(CFLAGS)
++CFLAGS_NATIVE           := $(CFLAGS) $(CPPFLAGS)
+ CFLAGS_NATIVE           += -I$(OPENCL_HEADERS_KHRONOS)/
+ CFLAGS_NATIVE           += -DWITH_HWMON
+ LFLAGS_NATIVE           := $(LFLAGS)
+@@ -198,7 +198,7 @@ endif # Linux
+ 
+ ifeq ($(UNAME),FreeBSD)
+ ifndef PORTNAME
+-CFLAGS_NATIVE           := $(CFLAGS)
++CFLAGS_NATIVE           := $(CFLAGS) $(CPPFLAGS)
+ CFLAGS_NATIVE           += -I$(OPENCL_HEADERS_KHRONOS)/
+ LFLAGS_NATIVE           := $(LFLAGS)
+ LFLAGS_NATIVE           += -lpthread
+@@ -207,7 +207,7 @@ endif # FreeBSD
+ 
+ ifeq ($(UNAME),Darwin)
+ export MACOSX_DEPLOYMENT_TARGET=10.9
+-CFLAGS_NATIVE           := $(CFLAGS)
++CFLAGS_NATIVE           := $(CFLAGS) $(CPPFLAGS)
+ LFLAGS_NATIVE           := $(LFLAGS)
+ LFLAGS_NATIVE           += -framework OpenCL
+ LFLAGS_NATIVE           += -lpthread
+@@ -215,7 +215,7 @@ LFLAGS_NATIVE           += -liconv
+ endif # Darwin
+ 
+ ifeq ($(UNAME),CYGWIN)
+-CFLAGS_NATIVE           := $(CFLAGS)
++CFLAGS_NATIVE           := $(CFLAGS) $(CPPFLAGS)
+ CFLAGS_NATIVE           += -I$(OPENCL_HEADERS_KHRONOS)/
+ CFLAGS_NATIVE           += -DWITH_HWMON
+ LFLAGS_NATIVE           := $(LFLAGS)
+@@ -225,7 +225,7 @@ LFLAGS_NATIVE           += -liconv
+ endif # CYGWIN
+ 
+ ifeq ($(UNAME),MSYS2)
+-CFLAGS_NATIVE           := $(CFLAGS)
++CFLAGS_NATIVE           := $(CFLAGS) $(CPPFLAGS)
+ CFLAGS_NATIVE           += -I$(OPENCL_HEADERS_KHRONOS)/
+ CFLAGS_NATIVE           += -DWITH_HWMON
+ LFLAGS_NATIVE           := $(LFLAGS)

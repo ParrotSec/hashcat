@@ -1,0 +1,517 @@
+.\"                                      Hey, EMACS: -*- nroff -*-
+.\" (C) Copyright 2016 Daniel Echeverry <epsilon77@gmail.com>,
+.\"
+.\" First parameter, NAME, should be all caps
+.\" Second parameter, SECTION, should be 1-8, maybe w/ subsection
+.\" other parameters are allowed: see man(7), man(1)
+.TH Hashcat 1 "March 28 2016"
+.\" Please adjust this date whenever revising the manpage.
+.\"
+.\" Some roff macros, for reference:
+.\" .nh        disable hyphenation
+.\" .hy        enable hyphenation
+.\" .ad l      left justify
+.\" .ad b      justify to both left and right margins
+.\" .nf        disable filling
+.\" .fi        enable filling
+.\" .br        insert line break
+.\" .sp <n>    insert n+1 empty lines
+.\" for manpage-specific macros, see man(7)
+.SH NAME
+hashcat \- Advanced CPU-based password recovery utility
+.SH SYNOPSIS
+.B hashcat
+.RI [ options ] " hashfile " [mask|wordfiles|directories]
+.br
+.SH DESCRIPTION
+Hashcat is the world’s fastest CPU-based password recovery tool.
+
+While it's not as fast as its GPU counterpart oclHashcat, large lists can be easily split in half with a good dictionary and a bit of knowledge of the command switches.
+
+Hashcat is the self-proclaimed world’s fastest CPU-based password recovery tool, Examples of hashcat supported hashing algorithms are Microsoft LM Hashes, MD4, MD5, SHA-family, Unix Crypt formats, MySQL, Cisco PIX.
+.PP
+.\" TeX users may be more comfortable with the \fB<whatever>\fP and
+.\" \fI<whatever>\fP escape sequences to invode bold face and italics,
+.\" respectively.
+.SH OPTIONS
+.TP
+.B \-h, \-\-help
+Show summary of options.
+.TP
+.B \-V, \-\-version
+Show version of program.
+.TP
+.B \-m, \-\-hash\-type=NUM
+Hash-type, see references below
+.TP
+.B \-a, \-\-attack\-mode=NUM
+Attack-mode, see references below
+.TP
+.B \-\-quiet 
+Suppress output
+.TP
+.B \-b, \-\-benchmark
+Run benchmark
+.TP
+.B \-\-hex\-salt
+Assume salt is given in hex
+.TP
+.B \-\-hex\-charset
+Assume charset is given in hex
+.TP
+.B \-\-runtime=NUM
+Abort session after NUM seconds of runtime
+.TP
+.B \-\-status
+Enable automatic update of the status-screen
+.TP
+.B \-\-status\-timer=NUM
+Seconds between status-screen update
+.TP
+.B \-\-status\-automat 
+Display the status view in a machine readable format
+.TP
+.B \-o, \-\-outfile=FILE
+Define outfile for recovered hash
+.TP
+.B \-\-outfile\-format=NUM
+Define outfile-format for recovered hash, see references below
+.TP
+.B \-\-outfile\-autohex\-disable
+Disable the use of $HEX[] in output plains
+.TP
+.B \-p, \-\-separator=CHAR
+Define separator char for hashlists/outfile
+.TP
+.B \-\-show
+Show cracked passwords only (see \-\-username)
+.TP
+.B \-\-left
+Show uncracked passwords only (see \-\-username)
+.TP
+.B \-\-username
+Enable ignoring of usernames in hashfile (Recommended: also use \-\-show)
+.TP
+.B \-\-remove
+Enable remove of hash once it is cracked
+.TP
+.B \-\-stdout
+Stdout mode
+.TP
+.B \-\-potfile\-disable
+Do not write potfile
+.TP
+.B \-\-debug\-mode=NUM
+Defines the debug mode (hybrid only by using rules), see references below
+.TP
+.B \-\-debug\-file=FILE
+Output file for debugging rules (see \-\-debug\-mode)
+.TP
+.B \-e, \-\-salt-file=FILE
+Salts-file for unsalted hashlists
+.TP
+.B \-c, \-\-segment\-size=NUM
+Size in MB to cache from the wordfile
+.TP
+.B \-n, \-\-threads=NUM
+Number of threads
+.TP
+.B \-s, \-\-words\-skip=NUM
+Skip number of words (for resume)
+.TP
+.B \-l, \-\-words\-limit=NUM
+Limit number of words (for distributed)
+.TP
+.B \-r, \-\-rules\-file=FILE
+Rules-file use: \-r 1.rule
+.TP
+.B \-g, \-\-generate\-rules=NUM
+Generate NUM random rules
+.TP
+.B \-\-generate\-rules\-func\-min=NUM 
+Force NUM functions per random rule min
+.TP
+.B \-\-generate\-rules\-func\-max=NUM 
+Force NUM functions per random rule max
+.TP
+.B \-\-generate\-rules\-seed=NUM 
+Force RNG seed to NUM
+.TP
+.B \-1, \-\-custom\-charset1=CS 
+User-defined charsets example \-\-custom\-charset1=?dabcdef : sets charset ?1 to 0123456789abcdef \-2 mycharset.hcchr : sets charset ?2 to chars contained in file
+.TP
+.B \-2, \-\-custom\-charset2=CS 
+User-defined charsets example \-\-custom\-charset1=?dabcdef : sets charset ?1 to 0123456789abcdef \-2 mycharset.hcchr : sets charset ?2 to chars con$
+.TP
+.B \-\-toogle\-min=NUM 
+Number of alphas in dictionary minimum
+.TP
+.B \-\-toogle\-max=NUM 
+Number of alphas in dictionary maximum
+.SH mass\-attack options
+.TP 
+.B \-\-increment
+Enable increment mode
+.TP 
+.B \-\-increment\-min=NUM
+Start incrementing at NUM
+.TP 
+.B \-\-increment\-max=NUM
+Stop incrementing at NUM
+.SH Permutation attack\-mode options
+.TP 
+.B \-\-perm\-min=NUM
+Filter words shorter than NUM
+.TP 
+.B \-\-perm\-max=NUM
+Filter words larger than NUM
+.SH Table\-Lookup attack\-mode options
+.TP 
+.B \-t, \-\-table\-file=FILE
+Table file
+.TP 
+.B \-\-table\-min=NUM
+Number of chars in dictionary minimum
+.TP 
+.B \-\-table\-max=NUM
+Number of chars in dictionary maximum
+.SH Prince attack\-mode options
+.TP
+.B \-\-pw\-min=NUM
+Print candidate if length is greater than NUM
+.TP
+.B \-\-pw\-max=NUM
+Print candidate if length is smaller than NUM
+.TP
+.B \-\-element\-cnt\-min=NUM
+Minimum number of elements per chain
+.TP
+.B \-\-element\-cnt\-max=NUM
+Maximum number of elements per chain
+.TP
+.B \-\-wl\-dist\-len
+Calculate output length distribution from wordlist
+.TP
+.B \-\-wl\-max=NUM
+Load only NUM words from input wordlist or use 0 to disable
+.TP
+.B \-\-case\-permute=NUM
+For each word in the wordlist that begins with a letter generate a word with the opposite case of the first letter
+.PP
+.PP
+.SH Outfile formats
+.PP
+ 1 = hash[:salt]
+.br
+ 2 = plain
+.br
+ 3 = hash[:salt]:plain
+.br
+ 4 = hex_plain
+.br
+ 5 = hash[:salt]:hex_plain
+.br
+ 6 = plain:hex_plain
+.br
+ 7 = hash[:salt]:plain:hex_plain
+.br
+ 8 = crackpos
+.br
+ 9 = hash[:salt]:crackpos
+.br
+ 10 = plain:crackpos
+.br
+ 11 = hash[:salt]:plain:crackpos
+.br
+ 12 = hex_plain:crackpos
+.br
+ 13 = hash[:salt]:hex_plain:crackpos
+.br
+ 14 = plain:hex_plain:crackpos
+.br
+ 15 = hash[:salt]:plain:hex_plain:crackpos
+.SH Debug mode output formats (for hybrid mode only, by using rules)
+.PP
+ 1 = save finding rule
+.br
+ 2 = save original word
+.br
+ 3 = save original word and finding rule
+.br
+ 4 = save original word, finding rule and modified plain
+.SH Built-in charsets
+.PP
+?l = abcdefghijklmnopqrstuvwxyz
+.br
+?u = ABCDEFGHIJKLMNOPQRSTUVWXYZ
+.br
+?d = 0123456789
+.br
+?s =  !"#$%&'()*+,\-./:;<=>?@[\]^_`{|}~
+.br
+?a = ?l?u?d?s
+.br
+?b = 0x00 \- 0xff
+.SH Attack mode
+.PP
+0 = Straight
+.br
+1 = Combination
+.br
+2 = Toggle\-Case
+.br
+3 = Brute\-force
+.br
+4 = Permutation
+.br
+5 = Table\-Lookup
+.br
+8 = Prince
+.SH Hash types
+.PP
+0 = MD5
+.br
+10 = md5($pass.$salt)
+.br
+20 = md5($salt.$pass)
+.br
+30 = md5(unicode($pass).$salt)
+.br
+40 = md5($salt.unicode($pass))
+.br
+50 = HMAC\-MD5 (key = $pass)
+.br
+60 = HMAC\-MD5 (key = $salt)
+.br
+100 = SHA1
+.br
+110 = sha1($pass.$salt)
+.br
+120 = sha1($salt.$pass)
+.br
+130 = sha1(unicode($pass).$salt)
+.br
+140 = sha1($salt.unicode($pass))
+.br
+150 = HMAC\-SHA1 (key = $pass)
+.br
+160 = HMAC\-SHA1 (key = $salt)
+.br
+200 = MySQL323
+.br
+300 = MySQL4.1/MySQL5
+.br
+400 = phpass, MD5(Wordpress), MD5(phpBB3), MD5(Joomla)
+.br
+500 = md5crypt, MD5(Unix), FreeBSD MD5, Cisco\-IOS MD5
+.br
+900 = MD4
+.br
+1000 = NTLM
+.br
+1100 = Domain Cached Credentials (DCC), MS Cache
+.br
+1400 = SHA256
+.br
+1410 = sha256($pass.$salt)
+.br
+1420 = sha256($salt.$pass)
+.br
+1430 = sha256(unicode($pass).$salt)
+.br
+1431 = base64(sha256(unicode($pass)))
+.br
+1440 = sha256($salt.unicode($pass))
+.br
+1450 = HMAC\-SHA256 (key = $pass)
+.br
+1460 = HMAC\-SHA256 (key = $salt)
+.br
+1600 = md5apr1, MD5(APR), Apache MD5
+.br
+1700 = SHA512
+.br
+1710 = sha512($pass.$salt)
+.br
+1720 = sha512($salt.$pass)
+.br
+1730 = sha512(unicode($pass).$salt)
+.br
+1740 = sha512($salt.unicode($pass))
+.br
+1750 = HMAC\-SHA512 (key = $pass)
+.br
+1760 = HMAC\-SHA512 (key = $salt)
+.br
+1800 = SHA\-512(Unix)
+.br
+2400 = Cisco\-PIX MD5
+.br
+2410 = Cisco\-ASA MD5
+.br
+2500 = WPA/WPA2
+.br
+2600 = Double MD5
+.br
+3200 = bcrypt, Blowfish(OpenBSD)
+.br
+3300 = MD5(Sun)
+.br
+3500 = md5(md5(md5($pass)))
+.br
+3610 = md5(md5($salt).$pass)
+.br
+3710 = md5($salt.md5($pass))
+.br
+3720 = md5($pass.md5($salt))
+.br
+3800 = md5($salt.$pass.$salt)
+.br
+3910 = md5(md5($pass).md5($salt))
+.br
+4010 = md5($salt.md5($salt.$pass))
+.br
+4110 = md5($salt.md5($pass.$salt))
+.br
+4210 = md5($username.0.$pass)
+.br
+4300 = md5(strtoupper(md5($pass)))
+.br
+4400 = md5(sha1($pass))
+.br
+4500 = Double SHA1
+.br
+4600 = sha1(sha1(sha1($pass)))
+.br
+4700 = sha1(md5($pass))
+.br
+4800 = MD5(Chap), iSCSI CHAP authentication
+.br
+4900 = sha1($salt.$pass.$salt)
+.br
+5000 = SHA\-3(Keccak)
+.br
+5100 = Half MD5
+.br
+5200 = Password Safe SHA-256
+.br
+5300 = IKE\-PSK MD5
+.br
+5400 = IKE\-PSK SHA1
+.br
+5500 = NetNTLMv1\-VANILLA / NetNTLMv1\-ESS
+.br
+5600 = NetNTLMv2
+.br
+5700 = Cisco\-IOS SHA256
+.br
+5800 = Android PIN
+.br
+6300 = AIX {smd5}
+.br
+6400 = AIX {ssha256}
+.br
+6500 = AIX {ssha512}
+.br
+6700 = AIX {ssha1}
+.br
+6900 = GOST, GOST R 34.11\-94
+.br
+7000 = Fortigate (FortiOS)
+.br
+7100 = OS X v10.8+
+.br
+7200 = GRUB 2
+.br
+7300 = IPMI2 RAKP HMAC\-SHA1
+.br
+7400 = sha256crypt, SHA256(Unix)
+.br
+7900 = Drupal7
+.br
+8400 = WBB3, Woltlab Burning Board 3
+.br
+8900 = scrypt
+.br
+9200 = Cisco $8$
+.br
+9300 = Cisco $9$
+.br
+9800 = Radmin2
+.br
+10000 = Django (PBKDF2\-SHA256)
+.br
+10200 = Cram MD5
+.br
+10300 = SAP CODVN H (PWDSALTEDHASH) iSSHA\-1
+.br
+11000 = PrestaShop
+.br
+11100 = PostgreSQL Challenge\-Response Authentication (MD5)
+.br
+11200 = MySQL Challenge\-Response Authentication (SHA1)
+.br
+11400 = SIP digest authentication (MD5)
+.br
+99999 = Plaintext
+.SH Specific hash type
+.PP
+11 = Joomla < 2.5.18
+.br
+12 = PostgreSQL
+.br
+21 = osCommerce, xt:Commerce
+.br
+23 = Skype
+.br
+101 = nsldap, SHA\-1(Base64), Netscape LDAP SHA
+.br
+111 = nsldaps, SSHA\-1(Base64), Netscape LDAP SSHA
+.br
+112 = Oracle S: Type (Oracle 11+)
+.br
+121 = SMF > v1.1
+.br
+122 = OS X v10.4, v10.5, v10.6
+.br
+123 = EPi
+.br
+124 = Django (SHA\-1)
+.br
+131 = MSSQL(2000)
+.br
+132 = MSSQL(2005)
+.br
+133 = PeopleSoft
+.br
+141 = EPiServer 6.x < v4
+.br
+1421 = hMailServer
+.br
+1441 = EPiServer 6.x > v4
+.br
+1711 = SSHA-512(Base64), LDAP {SSHA512}
+.br
+1722 = OS X v10.7
+.br
+1731 = MSSQL(2012 & 2014)
+.br
+2611 = vBulletin < v3.8.5
+.br
+2612 = PHPS
+.br
+2711 = vBulletin > v3.8.5
+.br
+2811 = IPB2+, MyBB1.2+
+.br
+3711 = Mediawiki B type
+.br
+3721 = WebEdition CMS
+.br
+7600 = Redmine Project Management Web App
+.PP
+.SH AUTHOR
+hashcat was written by Jens Steube <jens.steube@gmail.com>
+.PP
+This manual page was written by Daniel Echeverry <epsilon77@gmail.com>,
+for the Debian project (and may be used by others).

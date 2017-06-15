@@ -1,0 +1,76 @@
+Source: hashcat
+Section: net
+Priority: optional
+Maintainer: Debian Security Tools Packaging Team <pkg-security-team@lists.alioth.debian.org>
+Uploaders: Daniel Echeverry <epsilon77@gmail.com>
+Build-Depends: debhelper (>=10),
+               libgmp-dev,
+               opencl-headers
+Standards-Version: 3.9.8
+Homepage: https://hashcat.net/hashcat/
+Vcs-Git: https://anonscm.debian.org/git/pkg-security/hashcat.git
+Vcs-Browser: https://anonscm.debian.org/cgit/pkg-security/hashcat.git
+
+Package: hashcat
+Architecture: kfreebsd-any amd64 i386
+Depends: hashcat-data (>= ${source:Version}),
+         pocl-opencl-icd | opencl-icd,
+         ${misc:Depends},
+         ${shlibs:Depends}
+Suggests: beignet-opencl-icd, nvidia-opencl-icd, mesa-opencl-icd
+Description: World's fastest and most advanced password recovery utility
+ Hashcat supports five unique modes of attack for over 200 highly-optimized
+ hashing algorithms. hashcat currently supports CPUs, GPUs, and other
+ hardware accelerators on Linux, and has facilities to help enable
+ distributed password cracking.
+ .
+ Examples of hashcat supported hashing algorithms are:
+ MD5, HMAC-MD5, SHA1, HMAC-SHA1, MySQL323, MySQL4.1/MySQL5, phpass,
+ MD5(Wordpress), MD5(phpBB3), MD5(Joomla), md5crypt, MD5(Unix),
+ FreeBSD MD5, Cisco-IOS, MD4, NTLM, Domain Cached Credentials (DCC),
+ MS Cache, SHA256, HMAC-SHA256, md5apr1, MD5(APR), Apache MD5, SHA512,
+ HMAC-SHA512, Cisco-PIX, Cisco-ASA, WPA/WPA2, Double MD5, bcrypt,
+ Blowfish(OpenBSD), MD5(Sun), Double SHA1, SHA-3(Keccak),Half MD5,
+ Password Safe SHA-256, IKE-PSK MD5, IKE-PSK SHA1,
+ NetNTLMv1-VANILLA/NetNTLMv1-ESS, NetNTLMv2, Cisco-IOS SHA256,
+ Android PIN, AIX {smd5}, AIX {ssha256}, AIX {ssha512}, AIX {ssha1},
+ GOST, GOST R 34, Fortigate (FortiOS), OS X v10.8+, GRUB 2, IPMI2, RAKP,
+ HMAC-SHA1, sha256crypt, SHA256(Unix), Drupal7, WBB3, scrypt, Cisco $8$,
+ Cisco $9$, Radmin2, Django (PBKDF2-SHA256), Cram MD5, SAP, iSSHA-1,
+ PrestaShop, PostgreSQL, Challenge-Response Authentication (MD5),
+ MySQL Challenge-Response, Authentication (SHA1),
+ SIP digest authentication (MD5), Plaintext, Joomla < 2.5.18, PostgreSQL,
+ osCommerce, xt:Commerce, Skype, nsldap, Netscape, LDAP, nsldaps,
+ SSHA-1(Base64), Oracle S: Type (Oracle 11+), SMF > v1.1, OS X v10.4,
+ v10.5, v10.6, EPi, Django (SHA-1), MSSQL(2000), MSSQL(2005),
+ PeopleSoft, EPiServer 6.x < v4, hMailServer, SSHA-512(Base64),
+ LDAP {SSHA512}, OS X v10.7, MSSQL(2012 & 2014), vBulletin < v3.8.5,
+ PHPS, vBulletin > v3.8.5, IPB2+, MyBB1.2+, Mediawiki B type,
+ WebEdition CMS, Redmine.
+ .
+ Hashcat offers multiple attack modes for obtaining effective and
+ complex coverage over a hash's keyspace. These modes are:
+ .
+  * Brute-Force attack
+  * Combinator attack
+  * Dictionary attack
+  * Fingerprint attack
+  * Hybrid attack
+  * Mask attack
+  * Permutation attack
+  * Rule-based attack
+  * Table-Lookup attack
+  * Toggle-Case attack
+  * PRINCE attack
+
+Package: hashcat-data
+Architecture: all
+Depends: ${misc:Depends}
+Suggests: hashcat
+Replaces: hashcat (<= 2.00-0kali3)
+Description: Data files for hashcat advanced password recovery utility
+ Hashcat is an advanced CPU/GPU-based password recovery utility supporting
+ seven unique modes of attack for over 100 optimized hashing algorithms.
+ .
+ This package contains the data files for hashcat, including charsets,
+ rules, salts, and tables.

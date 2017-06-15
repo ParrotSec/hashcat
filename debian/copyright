@@ -1,0 +1,62 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: hashcat
+Source: http://hashcat.net/hashcat/
+
+Files: *
+Copyright: 2015-2017 Jens Steube <jens.steube@gmail.com>
+License: Expat
+
+Files: debian/*
+Copyright: 2016 Daniel Echeverry <epsilon77@gmail.com>
+           2016 Sophie Brun <sophie@freexian.com>
+           2017 Samuel Henrique <samueloph@gmail.com>
+License: Expat
+
+Files: OpenCL/m01500_a3.cl OpenCL/m03000_a3.cl OpenCL/m14000_a3.cl
+Copyright: 2015 DeepLearningJohnDoe <deeplearningjohndoe@gmail.com>
+           2011 Roman Rusakov <roman_rus@openwall.com>
+           2011 Solar Designer <solar@openwall.com>
+License: Expat
+License-Grant:
+ This file itself is Copyright (c) 2015 by <deeplearningjohndoe at gmail.com>
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted.
+ .
+ These Boolean expressions corresponding to DES S-boxes have been generated
+ by Roman Rusakov <roman_rus at openwall.com> for use in Openwall's
+ John the Ripper password cracker: http://www.openwall.com/john/
+ Being mathematical formulas, they are not copyrighted and are free for reuse
+ by anyone.
+ .
+ This file (a specific representation of the S-box expressions, surrounding
+ logic) is Copyright (c) 2011 by Solar Designer <solar at openwall.com>.
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted.  (This is a heavily cut-down "BSD license".)
+
+Files: OpenCL/inc_cipher_twofish.cl OpenCL/inc_cipher_serpent.cl
+Copyright: 1999 Brian Gladman <gladman@seven77.demon.co.uk>
+License: Expat
+License-Grant:
+ Copyright in this implementation is held by Dr B R Gladman but I
+ hereby give permission for its free direct or derivative use subject
+ to acknowledgment of its origin and compliance with any conditions
+ that the originators of the algorithm place on its exploitation.
+
+License: Expat
+ Permission is hereby granted, free of charge, to any person obtaining a
+ copy of this software and associated documentation files (the "Software"),
+ to deal in the Software without restriction, including without limitation
+ the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ and/or sell copies of the Software, and to permit persons to whom the
+ Software is furnished to do so, subject to the following conditions:
+ .
+ The above copyright notice and this permission notice shall be included
+ in all copies or substantial portions of the Software.
+ .
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+ OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+ CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
