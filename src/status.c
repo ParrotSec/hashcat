@@ -18,22 +18,27 @@
 #include "mpsp.h"
 #include "terminal.h"
 #include "status.h"
+#include "shared.h"
 
 static const char ST_0000[] = "Initializing";
 static const char ST_0001[] = "Autotuning";
-static const char ST_0002[] = "Running";
-static const char ST_0003[] = "Paused";
-static const char ST_0004[] = "Exhausted";
-static const char ST_0005[] = "Cracked";
-static const char ST_0006[] = "Aborted";
-static const char ST_0007[] = "Quit";
-static const char ST_0008[] = "Bypass";
-static const char ST_0009[] = "Aborted (Checkpoint)";
-static const char ST_0010[] = "Aborted (Runtime)";
-static const char ST_0011[] = "Running (Checkpoint Quit requested)";
+static const char ST_0002[] = "Selftest";
+static const char ST_0003[] = "Running";
+static const char ST_0004[] = "Paused";
+static const char ST_0005[] = "Exhausted";
+static const char ST_0006[] = "Cracked";
+static const char ST_0007[] = "Aborted";
+static const char ST_0008[] = "Quit";
+static const char ST_0009[] = "Bypass";
+static const char ST_0010[] = "Aborted (Checkpoint)";
+static const char ST_0011[] = "Aborted (Runtime)";
+static const char ST_0012[] = "Running (Checkpoint Quit requested)";
 static const char ST_9999[] = "Unknown! Bug!";
 
 static const char UNITS[7] = { ' ', 'k', 'M', 'G', 'T', 'P', 'E' };
+
+static const char ETA_ABSOLUTE_MAX_EXCEEDED[] = "Next Big Bang"; // in honor of ighashgpu
+static const char ETA_RELATIVE_MAX_EXCEEDED[] = "> 10 years";
 
 static char *status_get_rules_file (const hashcat_ctx_t *hashcat_ctx)
 {
@@ -204,7 +209,7 @@ char *status_get_status_string (const hashcat_ctx_t *hashcat_ctx)
   {
     if (status_ctx->checkpoint_shutdown == true)
     {
-      return ((char *) ST_0011);
+      return ((char *) ST_0012);
     }
   }
 
@@ -212,15 +217,16 @@ char *status_get_status_string (const hashcat_ctx_t *hashcat_ctx)
   {
     case STATUS_INIT:               return ((char *) ST_0000);
     case STATUS_AUTOTUNE:           return ((char *) ST_0001);
-    case STATUS_RUNNING:            return ((char *) ST_0002);
-    case STATUS_PAUSED:             return ((char *) ST_0003);
-    case STATUS_EXHAUSTED:          return ((char *) ST_0004);
-    case STATUS_CRACKED:            return ((char *) ST_0005);
-    case STATUS_ABORTED:            return ((char *) ST_0006);
-    case STATUS_QUIT:               return ((char *) ST_0007);
-    case STATUS_BYPASS:             return ((char *) ST_0008);
-    case STATUS_ABORTED_CHECKPOINT: return ((char *) ST_0009);
-    case STATUS_ABORTED_RUNTIME:    return ((char *) ST_0010);
+    case STATUS_SELFTEST:           return ((char *) ST_0002);
+    case STATUS_RUNNING:            return ((char *) ST_0003);
+    case STATUS_PAUSED:             return ((char *) ST_0004);
+    case STATUS_EXHAUSTED:          return ((char *) ST_0005);
+    case STATUS_CRACKED:            return ((char *) ST_0006);
+    case STATUS_ABORTED:            return ((char *) ST_0007);
+    case STATUS_QUIT:               return ((char *) ST_0008);
+    case STATUS_BYPASS:             return ((char *) ST_0009);
+    case STATUS_ABORTED_CHECKPOINT: return ((char *) ST_0010);
+    case STATUS_ABORTED_RUNTIME:    return ((char *) ST_0011);
   }
 
   return ((char *) ST_9999);
@@ -247,13 +253,13 @@ const char *status_get_hash_target (const hashcat_ctx_t *hashcat_ctx)
 
   if (hashes->digests_cnt == 1)
   {
-    if (hashconfig->hash_mode == 2500)
+    if ((hashconfig->hash_mode == 2500) || (hashconfig->hash_mode == 2501))
     {
-      char *tmp_buf = (char *) malloc (HCBUFSIZ_TINY);
+      char *tmp_buf;
 
       wpa_t *wpa = (wpa_t *) hashes->esalts_buf;
 
-      snprintf (tmp_buf, HCBUFSIZ_TINY - 1, "%s (AP:%02x:%02x:%02x:%02x:%02x:%02x STA:%02x:%02x:%02x:%02x:%02x:%02x)",
+      hc_asprintf (&tmp_buf, "%s (AP:%02x:%02x:%02x:%02x:%02x:%02x STA:%02x:%02x:%02x:%02x:%02x:%02x)",
         (char *) hashes->salts_buf[0].salt_buf,
         wpa->orig_mac_ap[0],
         wpa->orig_mac_ap[1],
@@ -307,7 +313,7 @@ const char *status_get_hash_target (const hashcat_ctx_t *hashcat_ctx)
   {
     if (hashconfig->hash_mode == 3000)
     {
-      char *tmp_buf = (char *) malloc (HCBUFSIZ_TINY);
+      char *tmp_buf;
 
       char out_buf1[64] = { 0 };
       char out_buf2[64] = { 0 };
@@ -315,7 +321,7 @@ const char *status_get_hash_target (const hashcat_ctx_t *hashcat_ctx)
       ascii_digest ((hashcat_ctx_t *) hashcat_ctx, out_buf1, sizeof (out_buf1), 0, 0);
       ascii_digest ((hashcat_ctx_t *) hashcat_ctx, out_buf2, sizeof (out_buf2), 0, 1);
 
-      snprintf (tmp_buf, HCBUFSIZ_TINY - 1, "%s, %s", out_buf1, out_buf2);
+      hc_asprintf (&tmp_buf, "%s, %s", out_buf1, out_buf2);
 
       return tmp_buf;
     }
@@ -433,6 +439,7 @@ int status_get_guess_mode (const hashcat_ctx_t *hashcat_ctx)
 
 char *status_get_guess_base (const hashcat_ctx_t *hashcat_ctx)
 {
+  const hashconfig_t         *hashconfig         = hashcat_ctx->hashconfig;
   const user_options_t       *user_options       = hashcat_ctx->user_options;
   const user_options_extra_t *user_options_extra = hashcat_ctx->user_options_extra;
 
@@ -472,9 +479,18 @@ char *status_get_guess_base (const hashcat_ctx_t *hashcat_ctx)
   }
   else if (user_options->attack_mode == ATTACK_MODE_HYBRID2)
   {
-    const straight_ctx_t *straight_ctx = hashcat_ctx->straight_ctx;
+    if (hashconfig->opti_type & OPTI_TYPE_OPTIMIZED_KERNEL)
+    {
+      const mask_ctx_t *mask_ctx = hashcat_ctx->mask_ctx;
 
-    return strdup (straight_ctx->dict);
+      return strdup (mask_ctx->mask);
+    }
+    else
+    {
+      const straight_ctx_t *straight_ctx = hashcat_ctx->straight_ctx;
+
+      return strdup (straight_ctx->dict);
+    }
   }
 
   return NULL;
@@ -482,6 +498,7 @@ char *status_get_guess_base (const hashcat_ctx_t *hashcat_ctx)
 
 int status_get_guess_base_offset (const hashcat_ctx_t *hashcat_ctx)
 {
+  const hashconfig_t   *hashconfig   = hashcat_ctx->hashconfig;
   const user_options_t *user_options = hashcat_ctx->user_options;
 
   if (user_options->attack_mode == ATTACK_MODE_STRAIGHT)
@@ -508,9 +525,18 @@ int status_get_guess_base_offset (const hashcat_ctx_t *hashcat_ctx)
   }
   else if (user_options->attack_mode == ATTACK_MODE_HYBRID2)
   {
-    const straight_ctx_t *straight_ctx = hashcat_ctx->straight_ctx;
+    if (hashconfig->opti_type & OPTI_TYPE_OPTIMIZED_KERNEL)
+    {
+      const mask_ctx_t *mask_ctx = hashcat_ctx->mask_ctx;
 
-    return straight_ctx->dicts_pos + 1;
+      return mask_ctx->masks_pos + 1;
+    }
+    else
+    {
+      const straight_ctx_t *straight_ctx = hashcat_ctx->straight_ctx;
+
+      return straight_ctx->dicts_pos + 1;
+    }
   }
 
   return 0;
@@ -518,6 +544,7 @@ int status_get_guess_base_offset (const hashcat_ctx_t *hashcat_ctx)
 
 int status_get_guess_base_count (const hashcat_ctx_t *hashcat_ctx)
 {
+  const hashconfig_t   *hashconfig   = hashcat_ctx->hashconfig;
   const user_options_t *user_options = hashcat_ctx->user_options;
 
   if (user_options->attack_mode == ATTACK_MODE_STRAIGHT)
@@ -544,9 +571,18 @@ int status_get_guess_base_count (const hashcat_ctx_t *hashcat_ctx)
   }
   else if (user_options->attack_mode == ATTACK_MODE_HYBRID2)
   {
-    const straight_ctx_t *straight_ctx = hashcat_ctx->straight_ctx;
+    if (hashconfig->opti_type & OPTI_TYPE_OPTIMIZED_KERNEL)
+    {
+      const mask_ctx_t *mask_ctx = hashcat_ctx->mask_ctx;
 
-    return straight_ctx->dicts_cnt;
+      return mask_ctx->masks_cnt;
+    }
+    else
+    {
+      const straight_ctx_t *straight_ctx = hashcat_ctx->straight_ctx;
+
+      return straight_ctx->dicts_cnt;
+    }
   }
 
   return 0;
@@ -564,13 +600,15 @@ double status_get_guess_base_percent (const hashcat_ctx_t *hashcat_ctx)
 
 char *status_get_guess_mod (const hashcat_ctx_t *hashcat_ctx)
 {
+  const hashconfig_t   *hashconfig   = hashcat_ctx->hashconfig;
   const user_options_t *user_options = hashcat_ctx->user_options;
 
   if (user_options->attack_mode == ATTACK_MODE_STRAIGHT)
   {
     return status_get_rules_file (hashcat_ctx);
   }
-  else if (user_options->attack_mode == ATTACK_MODE_COMBI)
+
+  if (user_options->attack_mode == ATTACK_MODE_COMBI)
   {
     const combinator_ctx_t *combinator_ctx = hashcat_ctx->combinator_ctx;
 
@@ -583,21 +621,33 @@ char *status_get_guess_mod (const hashcat_ctx_t *hashcat_ctx)
       return strdup (combinator_ctx->dict1);
     }
   }
-  else if (user_options->attack_mode == ATTACK_MODE_BF)
+
+  if (user_options->attack_mode == ATTACK_MODE_BF)
   {
 
   }
-  else if (user_options->attack_mode == ATTACK_MODE_HYBRID1)
+
+  if (user_options->attack_mode == ATTACK_MODE_HYBRID1)
   {
     const mask_ctx_t *mask_ctx = hashcat_ctx->mask_ctx;
 
     return strdup (mask_ctx->mask);
   }
-  else if (user_options->attack_mode == ATTACK_MODE_HYBRID2)
-  {
-    const mask_ctx_t *mask_ctx = hashcat_ctx->mask_ctx;
 
-    return strdup (mask_ctx->mask);
+  if (user_options->attack_mode == ATTACK_MODE_HYBRID2)
+  {
+    if (hashconfig->opti_type & OPTI_TYPE_OPTIMIZED_KERNEL)
+    {
+      const straight_ctx_t *straight_ctx = hashcat_ctx->straight_ctx;
+
+      return strdup (straight_ctx->dict);
+    }
+    else
+    {
+      const mask_ctx_t *mask_ctx = hashcat_ctx->mask_ctx;
+
+      return strdup (mask_ctx->mask);
+    }
   }
 
   return NULL;
@@ -605,6 +655,7 @@ char *status_get_guess_mod (const hashcat_ctx_t *hashcat_ctx)
 
 int status_get_guess_mod_offset (const hashcat_ctx_t *hashcat_ctx)
 {
+  const hashconfig_t   *hashconfig   = hashcat_ctx->hashconfig;
   const user_options_t *user_options = hashcat_ctx->user_options;
 
   if (user_options->attack_mode == ATTACK_MODE_STRAIGHT)
@@ -627,9 +678,18 @@ int status_get_guess_mod_offset (const hashcat_ctx_t *hashcat_ctx)
   }
   else if (user_options->attack_mode == ATTACK_MODE_HYBRID2)
   {
-    const mask_ctx_t *mask_ctx = hashcat_ctx->mask_ctx;
+    if (hashconfig->opti_type & OPTI_TYPE_OPTIMIZED_KERNEL)
+    {
+      const straight_ctx_t *straight_ctx = hashcat_ctx->straight_ctx;
 
-    return mask_ctx->masks_pos + 1;
+      return straight_ctx->dicts_pos + 1;
+    }
+    else
+    {
+      const mask_ctx_t *mask_ctx = hashcat_ctx->mask_ctx;
+
+      return mask_ctx->masks_pos + 1;
+    }
   }
 
   return 0;
@@ -637,6 +697,7 @@ int status_get_guess_mod_offset (const hashcat_ctx_t *hashcat_ctx)
 
 int status_get_guess_mod_count (const hashcat_ctx_t *hashcat_ctx)
 {
+  const hashconfig_t   *hashconfig   = hashcat_ctx->hashconfig;
   const user_options_t *user_options = hashcat_ctx->user_options;
 
   if (user_options->attack_mode == ATTACK_MODE_STRAIGHT)
@@ -659,9 +720,18 @@ int status_get_guess_mod_count (const hashcat_ctx_t *hashcat_ctx)
   }
   else if (user_options->attack_mode == ATTACK_MODE_HYBRID2)
   {
-    const mask_ctx_t *mask_ctx = hashcat_ctx->mask_ctx;
+    if (hashconfig->opti_type & OPTI_TYPE_OPTIMIZED_KERNEL)
+    {
+      const straight_ctx_t *straight_ctx = hashcat_ctx->straight_ctx;
 
-    return mask_ctx->masks_cnt;
+      return straight_ctx->dicts_cnt;
+    }
+    else
+    {
+      const mask_ctx_t *mask_ctx = hashcat_ctx->mask_ctx;
+
+      return mask_ctx->masks_cnt;
+    }
   }
 
   return 0;
@@ -688,14 +758,14 @@ char *status_get_guess_charset (const hashcat_ctx_t *hashcat_ctx)
 
   if ((custom_charset_1 != NULL) || (custom_charset_2 != NULL) || (custom_charset_3 != NULL) || (custom_charset_4 != NULL))
   {
-    char *tmp_buf = (char *) malloc (HCBUFSIZ_TINY);
+    char *tmp_buf;
 
     if (custom_charset_1 == NULL) custom_charset_1 = "Undefined";
     if (custom_charset_2 == NULL) custom_charset_2 = "Undefined";
     if (custom_charset_3 == NULL) custom_charset_3 = "Undefined";
     if (custom_charset_4 == NULL) custom_charset_4 = "Undefined";
 
-    snprintf (tmp_buf, HCBUFSIZ_TINY - 1, "-1 %s, -2 %s, -3 %s, -4 %s", custom_charset_1, custom_charset_2, custom_charset_3, custom_charset_4);
+    hc_asprintf (&tmp_buf, "-1 %s, -2 %s, -3 %s, -4 %s", custom_charset_1, custom_charset_2, custom_charset_3, custom_charset_4);
 
     return tmp_buf;
   }
@@ -749,8 +819,8 @@ char *status_get_guess_candidates_dev (const hashcat_ctx_t *hashcat_ctx, const i
   plain_t plain1 = { 0, 0, 0, outerloop_first, innerloop_first };
   plain_t plain2 = { 0, 0, 0, outerloop_last,  innerloop_last  };
 
-  u32 plain_buf1[40] = { 0 };
-  u32 plain_buf2[40] = { 0 };
+  u32 plain_buf1[(64 * 2) + 2] = { 0 };
+  u32 plain_buf2[(64 * 2) + 2] = { 0 };
 
   u8 *plain_ptr1 = (u8 *) plain_buf1;
   u8 *plain_ptr2 = (u8 *) plain_buf2;
@@ -872,11 +942,11 @@ char *status_get_time_started_absolute (const hashcat_ctx_t *hashcat_ctx)
 {
   const status_ctx_t *status_ctx = hashcat_ctx->status_ctx;
 
-  const time_t time_start = status_ctx->runtime_start;
+  const hc_time_t time_start = status_ctx->runtime_start;
 
   char buf[32] = { 0 };
 
-  char *start = ctime_r (&time_start, buf);
+  char *start = hc_ctime (&time_start, buf, 32);
 
   const size_t start_len = strlen (start);
 
@@ -890,27 +960,18 @@ char *status_get_time_started_relative (const hashcat_ctx_t *hashcat_ctx)
 {
   const status_ctx_t *status_ctx = hashcat_ctx->status_ctx;
 
-  time_t time_now;
+  hc_time_t time_now;
 
-  time (&time_now);
+  hc_time (&time_now);
 
-  const time_t time_start = status_ctx->runtime_start;
+  const hc_time_t time_start = status_ctx->runtime_start;
 
-  #if defined (_WIN)
-  __time64_t sec_run = time_now - time_start;
-  #else
-  time_t sec_run = time_now - time_start;
-  #endif
+  hc_time_t sec_run = time_now - time_start;
 
   struct tm *tmp;
+  struct tm  tm;
 
-  #if defined (_WIN)
-  tmp = _gmtime64 (&sec_run);
-  #else
-  struct tm tm;
-
-  tmp = gmtime_r (&sec_run, &tm);
-  #endif
+  tmp = hc_gmtime (&sec_run, &tm);
 
   char *display_run = (char *) malloc (HCBUFSIZ_TINY);
 
@@ -919,16 +980,12 @@ char *status_get_time_started_relative (const hashcat_ctx_t *hashcat_ctx)
   return display_run;
 }
 
-char *status_get_time_estimated_absolute (const hashcat_ctx_t *hashcat_ctx)
+hc_time_t status_get_sec_etc (const hashcat_ctx_t *hashcat_ctx)
 {
   const status_ctx_t         *status_ctx         = hashcat_ctx->status_ctx;
   const user_options_extra_t *user_options_extra = hashcat_ctx->user_options_extra;
 
-  #if defined (_WIN)
-  __time64_t sec_etc = 0;
-  #else
-  time_t sec_etc = 0;
-  #endif
+  hc_time_t sec_etc = 0;
 
   if ((user_options_extra->wordlist_mode == WL_MODE_FILE) || (user_options_extra->wordlist_mode == WL_MODE_MASK))
   {
@@ -952,21 +1009,33 @@ char *status_get_time_estimated_absolute (const hashcat_ctx_t *hashcat_ctx)
     }
   }
 
-  // we need this check to avoid integer overflow
-  if (sec_etc > 100000000)
-  {
-    sec_etc = 100000000;
-  }
+  return sec_etc;
+}
 
-  time_t now;
+char *status_get_time_estimated_absolute (const hashcat_ctx_t *hashcat_ctx)
+{
+  hc_time_t sec_etc = status_get_sec_etc (hashcat_ctx);
 
-  time (&now);
+  hc_time_t now;
+  hc_time (&now);
 
-  now += sec_etc;
 
   char buf[32] = { 0 };
 
-  char *etc = ctime_r (&now, buf);
+  char *etc;
+
+  if (overflow_check_u64_add (now, sec_etc) == false)
+  {
+    etc = (char *) ETA_ABSOLUTE_MAX_EXCEEDED;
+  }
+  else
+  {
+    hc_time_t end = now + sec_etc;
+
+    etc = hc_ctime (&end, buf, sizeof (buf));
+
+    if (etc == NULL) etc = (char *) ETA_ABSOLUTE_MAX_EXCEEDED;
+  }
 
   const size_t etc_len = strlen (etc);
 
@@ -978,59 +1047,25 @@ char *status_get_time_estimated_absolute (const hashcat_ctx_t *hashcat_ctx)
 
 char *status_get_time_estimated_relative (const hashcat_ctx_t *hashcat_ctx)
 {
-  const status_ctx_t         *status_ctx         = hashcat_ctx->status_ctx;
-  const user_options_t       *user_options       = hashcat_ctx->user_options;
-  const user_options_extra_t *user_options_extra = hashcat_ctx->user_options_extra;
-
-  #if defined (_WIN)
-  __time64_t sec_etc = 0;
-  #else
-  time_t sec_etc = 0;
-  #endif
-
-  if ((user_options_extra->wordlist_mode == WL_MODE_FILE) || (user_options_extra->wordlist_mode == WL_MODE_MASK))
-  {
-    if (status_ctx->devices_status != STATUS_CRACKED)
-    {
-      const u64 progress_cur_relative_skip = status_get_progress_cur_relative_skip (hashcat_ctx);
-      const u64 progress_end_relative_skip = status_get_progress_end_relative_skip (hashcat_ctx);
-
-      const u64 progress_ignore = status_get_progress_ignore (hashcat_ctx);
-
-      const double hashes_msec_all = status_get_hashes_msec_all (hashcat_ctx);
-
-      if (hashes_msec_all > 0)
-      {
-        const u64 progress_left_relative_skip = progress_end_relative_skip - progress_cur_relative_skip;
-
-        u64 msec_left = (u64) ((progress_left_relative_skip - progress_ignore) / hashes_msec_all);
-
-        sec_etc = msec_left / 1000;
-      }
-    }
-  }
-
-  // we need this check to avoid integer overflow
-  #if defined (_WIN)
-  if (sec_etc > 100000000)
-  {
-    sec_etc = 100000000;
-  }
-  #endif
-
-  struct tm *tmp;
-
-  #if defined (_WIN)
-  tmp = _gmtime64 (&sec_etc);
-  #else
-  struct tm tm;
-
-  tmp = gmtime_r (&sec_etc, &tm);
-  #endif
+  const user_options_t *user_options = hashcat_ctx->user_options;
 
   char *display = (char *) malloc (HCBUFSIZ_TINY);
 
-  format_timer_display (tmp, display, HCBUFSIZ_TINY);
+  hc_time_t sec_etc = status_get_sec_etc (hashcat_ctx);
+
+  struct tm *tmp;
+  struct tm  tm;
+
+  tmp = hc_gmtime (&sec_etc, &tm);
+
+  if (tmp == NULL)
+  {
+    snprintf (display, HCBUFSIZ_TINY, "%s", ETA_RELATIVE_MAX_EXCEEDED);
+  }
+  else
+  {
+    format_timer_display (tmp, display, HCBUFSIZ_TINY);
+  }
 
   if (user_options->runtime > 0)
   {
@@ -1040,21 +1075,12 @@ char *status_get_time_estimated_relative (const hashcat_ctx_t *hashcat_ctx)
 
     if (runtime_left > 0)
     {
-      #if defined (_WIN)
-      __time64_t sec_left = runtime_left;
-      #else
-      time_t sec_left = runtime_left;
-      #endif
+      hc_time_t sec_left = runtime_left;
 
       struct tm *tmp_left;
+      struct tm  tm_left;
 
-      #if defined (_WIN)
-      tmp_left = _gmtime64 (&sec_left);
-      #else
-      struct tm tm_left;
-
-      tmp_left = gmtime_r (&sec_left, &tm_left);
-      #endif
+      tmp_left = hc_gmtime (&sec_left, &tm_left);
 
       char *display_left = (char *) malloc (HCBUFSIZ_TINY);
 
@@ -1445,14 +1471,14 @@ int status_get_cpt_cur_min (const hashcat_ctx_t *hashcat_ctx)
 
   if (status_ctx->accessible == false) return 0;
 
-  const time_t now = time (NULL);
+  const hc_time_t now = hc_time (NULL);
 
   int cpt_cur_min = 0;
 
   for (int i = 0; i < CPT_CACHE; i++)
   {
-    const u32    cracked   = cpt_ctx->cpt_buf[i].cracked;
-    const time_t timestamp = cpt_ctx->cpt_buf[i].timestamp;
+    const u32       cracked   = cpt_ctx->cpt_buf[i].cracked;
+    const hc_time_t timestamp = cpt_ctx->cpt_buf[i].timestamp;
 
     if ((timestamp + 60) > now)
     {
@@ -1470,14 +1496,14 @@ int status_get_cpt_cur_hour (const hashcat_ctx_t *hashcat_ctx)
 
   if (status_ctx->accessible == false) return 0;
 
-  const time_t now = time (NULL);
+  const hc_time_t now = hc_time (NULL);
 
   int cpt_cur_hour = 0;
 
   for (int i = 0; i < CPT_CACHE; i++)
   {
-    const u32    cracked   = cpt_ctx->cpt_buf[i].cracked;
-    const time_t timestamp = cpt_ctx->cpt_buf[i].timestamp;
+    const u32       cracked   = cpt_ctx->cpt_buf[i].cracked;
+    const hc_time_t timestamp = cpt_ctx->cpt_buf[i].timestamp;
 
     if ((timestamp + 3600) > now)
     {
@@ -1495,14 +1521,14 @@ int status_get_cpt_cur_day (const hashcat_ctx_t *hashcat_ctx)
 
   if (status_ctx->accessible == false) return 0;
 
-  const time_t now = time (NULL);
+  const hc_time_t now = hc_time (NULL);
 
   int cpt_cur_day = 0;
 
   for (int i = 0; i < CPT_CACHE; i++)
   {
-    const u32    cracked   = cpt_ctx->cpt_buf[i].cracked;
-    const time_t timestamp = cpt_ctx->cpt_buf[i].timestamp;
+    const u32       cracked   = cpt_ctx->cpt_buf[i].cracked;
+    const hc_time_t timestamp = cpt_ctx->cpt_buf[i].timestamp;
 
     if ((timestamp + 86400) > now)
     {
@@ -1550,9 +1576,9 @@ char *status_get_cpt (const hashcat_ctx_t *hashcat_ctx)
 {
   const cpt_ctx_t *cpt_ctx = hashcat_ctx->cpt_ctx;
 
-  const time_t now = time (NULL);
+  const hc_time_t now = hc_time (NULL);
 
-  char *cpt = (char *) malloc (HCBUFSIZ_TINY);
+  char *cpt;
 
   const int cpt_cur_min  = status_get_cpt_cur_min  (hashcat_ctx);
   const int cpt_cur_hour = status_get_cpt_cur_hour (hashcat_ctx);
@@ -1564,7 +1590,7 @@ char *status_get_cpt (const hashcat_ctx_t *hashcat_ctx)
 
   if ((cpt_ctx->cpt_start + 86400) < now)
   {
-    snprintf (cpt, HCBUFSIZ_TINY - 1, "CUR:%d,%d,%d AVG:%d,%d,%d (Min,Hour,Day)",
+    hc_asprintf (&cpt, "CUR:%d,%d,%d AVG:%d,%d,%d (Min,Hour,Day)",
       cpt_cur_min,
       cpt_cur_hour,
       cpt_cur_day,
@@ -1574,7 +1600,7 @@ char *status_get_cpt (const hashcat_ctx_t *hashcat_ctx)
   }
   else if ((cpt_ctx->cpt_start + 3600) < now)
   {
-    snprintf (cpt, HCBUFSIZ_TINY - 1, "CUR:%d,%d,N/A AVG:%d,%d,%d (Min,Hour,Day)",
+    hc_asprintf (&cpt, "CUR:%d,%d,N/A AVG:%d,%d,%d (Min,Hour,Day)",
       cpt_cur_min,
       cpt_cur_hour,
       cpt_avg_min,
@@ -1583,7 +1609,7 @@ char *status_get_cpt (const hashcat_ctx_t *hashcat_ctx)
   }
   else if ((cpt_ctx->cpt_start + 60) < now)
   {
-    snprintf (cpt, HCBUFSIZ_TINY - 1, "CUR:%d,N/A,N/A AVG:%d,%d,%d (Min,Hour,Day)",
+    hc_asprintf (&cpt, "CUR:%d,N/A,N/A AVG:%d,%d,%d (Min,Hour,Day)",
       cpt_cur_min,
       cpt_avg_min,
       cpt_avg_hour,
@@ -1591,7 +1617,7 @@ char *status_get_cpt (const hashcat_ctx_t *hashcat_ctx)
   }
   else
   {
-    snprintf (cpt, HCBUFSIZ_TINY - 1, "CUR:N/A,N/A,N/A AVG:%d,%d,%d (Min,Hour,Day)",
+    hc_asprintf (&cpt, "CUR:N/A,N/A,N/A AVG:%d,%d,%d (Min,Hour,Day)",
       cpt_avg_min,
       cpt_avg_hour,
       cpt_avg_day);

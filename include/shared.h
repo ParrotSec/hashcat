@@ -31,10 +31,7 @@ char *filename_from_filepath (char *filepath);
 void naive_replace (char *s, const char key_char, const char replace_char);
 void naive_escape (char *s, size_t s_max, const char key_char, const char escape_char);
 
-void hc_asprintf (char **strp, const char *fmt, ...);
-
-void hc_sleep_msec (const u32 msec);
-void hc_sleep      (const u32 sec);
+__attribute__ ((format (printf, 2, 3))) void hc_asprintf (char **strp, const char *fmt, ...);
 
 void setup_environment_variables (void);
 void setup_umask (void);
@@ -58,5 +55,14 @@ bool hc_string_is_digit (const char *s);
 
 void hc_string_trim_trailing (char *s);
 void hc_string_trim_leading (char *s);
+
+size_t hc_fread (void *ptr, size_t size, size_t nmemb, FILE *stream);
+void   hc_fwrite (const void *ptr, size_t size, size_t nmemb, FILE *stream);
+
+hc_time_t  hc_time   (hc_time_t *t);
+struct tm *hc_gmtime (const hc_time_t *t, MAYBE_UNUSED struct tm *result);
+char      *hc_ctime  (const hc_time_t *t, char *buf, MAYBE_UNUSED const size_t buf_size);
+
+bool hc_same_files (char *file1, char *file2);
 
 #endif // _SHARED_H

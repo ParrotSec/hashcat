@@ -53,18 +53,20 @@ static int sort_by_tuning_db_entry (const void *v1, const void *v2)
 
 int tuning_db_init (hashcat_ctx_t *hashcat_ctx)
 {
-  folder_config_t *folder_config = hashcat_ctx->folder_config;
-  tuning_db_t     *tuning_db     = hashcat_ctx->tuning_db;
-  user_options_t  *user_options  = hashcat_ctx->user_options;
+  folder_config_t       *folder_config      = hashcat_ctx->folder_config;
+  tuning_db_t           *tuning_db          = hashcat_ctx->tuning_db;
+  user_options_t        *user_options       = hashcat_ctx->user_options;
+  user_options_extra_t  *user_options_extra = hashcat_ctx->user_options_extra;
 
   tuning_db->enabled = false;
 
-  if (user_options->keyspace    == true) return 0;
-  if (user_options->left        == true) return 0;
-  if (user_options->opencl_info == true) return 0;
-  if (user_options->show        == true) return 0;
-  if (user_options->usage       == true) return 0;
-  if (user_options->version     == true) return 0;
+  if (user_options->example_hashes == true) return 0;
+  if (user_options->keyspace       == true) return 0;
+  if (user_options->left           == true) return 0;
+  if (user_options->opencl_info    == true) return 0;
+  if (user_options->show           == true) return 0;
+  if (user_options->usage          == true) return 0;
+  if (user_options->version        == true) return 0;
 
   tuning_db->enabled = true;
 
@@ -181,7 +183,15 @@ int tuning_db_init (hashcat_ctx_t *hashcat_ctx)
       if (token_ptr[2][0] != '*') hash_type        = atoi (token_ptr[2]);
       if (token_ptr[3][0] != 'N') vector_width     = atoi (token_ptr[3]);
 
-      if (token_ptr[4][0] != 'A')
+      if (token_ptr[4][0] == 'A')
+      {
+        kernel_accel = 0;
+      }
+      else if (token_ptr[4][0] == 'M')
+      {
+        kernel_accel = 1024;
+      }
+      else
       {
         kernel_accel = atoi (token_ptr[4]);
 
@@ -192,25 +202,57 @@ int tuning_db_init (hashcat_ctx_t *hashcat_ctx)
           continue;
         }
       }
-      else
-      {
-        kernel_accel = 0;
-      }
 
-      if (token_ptr[5][0] != 'A')
+      if (token_ptr[5][0] == 'A')
+      {
+        kernel_loops = 0;
+      }
+      else if (token_ptr[5][0] == 'M')
+      {
+        if (user_options_extra->attack_kern == ATTACK_KERN_STRAIGHT)
+        {
+          kernel_loops = KERNEL_RULES;
+        }
+        else if (user_options_extra->attack_kern == ATTACK_KERN_COMBI)
+        {
+          kernel_loops = KERNEL_COMBS;
+        }
+        else if (user_options_extra->attack_kern == ATTACK_KERN_BF)
+        {
+          kernel_loops = KERNEL_BFS;
+        }
+      }
+      else
       {
         kernel_loops = atoi (token_ptr[5]);
 
-        if ((kernel_loops < 1) || (kernel_loops > 1024))
+        if (kernel_loops < 1)
         {
           event_log_warning (hashcat_ctx, "Tuning-db: Invalid kernel_loops '%d' in Line '%d'", kernel_loops, line_num);
 
           continue;
         }
-      }
-      else
-      {
-        kernel_loops = 0;
+
+        if ((user_options_extra->attack_kern == ATTACK_KERN_STRAIGHT) && (kernel_loops > KERNEL_RULES))
+        {
+          event_log_warning (hashcat_ctx, "Tuning-db: Invalid kernel_loops '%d' in Line '%d'", kernel_loops, line_num);
+
+          continue;
+        }
+
+        if ((user_options_extra->attack_kern == ATTACK_KERN_COMBI) && (kernel_loops > KERNEL_COMBS))
+        {
+          event_log_warning (hashcat_ctx, "Tuning-db: Invalid kernel_loops '%d' in Line '%d'", kernel_loops, line_num);
+
+          continue;
+        }
+
+        if ((user_options_extra->attack_kern == ATTACK_KERN_BF) && (kernel_loops > KERNEL_BFS))
+        {
+          event_log_warning (hashcat_ctx, "Tuning-db: Invalid kernel_loops '%d' in Line '%d'", kernel_loops, line_num);
+
+          continue;
+        }
       }
 
       tuning_db_entry_t *entry = &tuning_db->entry_buf[tuning_db->entry_cnt];
@@ -300,9 +342,20 @@ tuning_db_entry_t *tuning_db_search (hashcat_ctx_t *hashcat_ctx, const char *dev
 
   a.device_name = device_name_nospace;
 
-  tuning_db_alias_t *alias = bsearch (&a, tuning_db->alias_buf, tuning_db->alias_cnt, sizeof (tuning_db_alias_t), sort_by_tuning_db_alias);
+  char *alias_name = NULL;
 
-  char *alias_name = (alias == NULL) ? NULL : alias->alias_name;
+  for (i = device_name_length; i >= 1; i--)
+  {
+    device_name_nospace[i] = 0;
+
+    tuning_db_alias_t *alias = bsearch (&a, tuning_db->alias_buf, tuning_db->alias_cnt, sizeof (tuning_db_alias_t), sort_by_tuning_db_alias);
+
+    if (alias == NULL) continue;
+
+    alias_name = alias->alias_name;
+
+    break;
+  }
 
   // attack-mode 6 and 7 are attack-mode 1 basically
 

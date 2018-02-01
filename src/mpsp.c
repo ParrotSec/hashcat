@@ -7,12 +7,14 @@
 #include "types.h"
 #include "memory.h"
 #include "event.h"
+#include "bitops.h"
 #include "logfile.h"
 #include "convert.h"
 #include "filehandling.h"
 #include "interface.h"
 #include "opencl.h"
 #include "shared.h"
+#include "ext_lzma.h"
 #include "mpsp.h"
 
 static const char DEF_MASK[] = "?1?2?2?2?2?2?2?3?3?3?3?d?d?d?d";
@@ -99,7 +101,7 @@ static int mp_css_append_salt (hashcat_ctx_t *hashcat_ctx, salt_t *salt_buf)
 {
   mask_ctx_t *mask_ctx = hashcat_ctx->mask_ctx;
 
-  u32  salt_len     = (u32)  salt_buf->salt_len;
+  u32  salt_len     =        salt_buf->salt_len;
   u8  *salt_buf_ptr = (u8 *) salt_buf->salt_buf;
 
   u32 css_cnt_salt = mask_ctx->css_cnt + salt_len;
@@ -199,7 +201,7 @@ static int mp_css_to_uniq_tbl (hashcat_ctx_t *hashcat_ctx, u32 css_cnt, cs_t *cs
   return 0;
 }
 
-static int mp_add_cs_buf (hashcat_ctx_t *hashcat_ctx, u32 *in_buf, size_t in_len, cs_t *css, u32 css_cnt)
+static int mp_add_cs_buf (hashcat_ctx_t *hashcat_ctx, const u32 *in_buf, size_t in_len, cs_t *css, u32 css_cnt)
 {
   const hashconfig_t *hashconfig = hashcat_ctx->hashconfig;
 
@@ -567,9 +569,9 @@ static int mp_setup_usr (hashcat_ctx_t *hashcat_ctx, cs_t *mp_sys, cs_t *mp_usr,
   }
   else
   {
-    char mp_file[1024] = { 0 };
+    char mp_file[1024];
 
-    const size_t nread = fread (mp_file, 1, sizeof (mp_file) - 1, fp);
+    const size_t nread = hc_fread (mp_file, 1, sizeof (mp_file) - 1, fp);
 
     if (!feof (fp))
     {
@@ -579,10 +581,8 @@ static int mp_setup_usr (hashcat_ctx_t *hashcat_ctx, cs_t *mp_sys, cs_t *mp_usr,
 
       return -1;
     }
-    else
-    {
-      fclose (fp);
-    }
+
+    fclose (fp);
 
     if (nread == 0)
     {
@@ -678,6 +678,15 @@ static int sp_setup_tbl (hashcat_ctx_t *hashcat_ctx)
     hcstat = hcstat_tmp;
   }
 
+  hc_stat_t s;
+
+  if (hc_stat (hcstat, &s) == -1)
+  {
+    event_log_error (hashcat_ctx, "%s: %s", hcstat, strerror (errno));
+
+    return -1;
+  }
+
   FILE *fd = fopen (hcstat, "rb");
 
   if (fd == NULL)
@@ -687,25 +696,89 @@ static int sp_setup_tbl (hashcat_ctx_t *hashcat_ctx)
     return -1;
   }
 
-  if (fread (root_stats_buf, sizeof (u64), SP_ROOT_CNT, fd) != SP_ROOT_CNT)
+  u8 *inbuf = (u8 *) hcmalloc (s.st_size);
+
+  SizeT inlen = (SizeT) hc_fread (inbuf, 1, s.st_size, fd);
+
+  if (inlen != (SizeT) s.st_size)
   {
-    event_log_error (hashcat_ctx, "%s: Could not load data.", hcstat);
+    event_log_error (hashcat_ctx, "%s: Could not read data.", hcstat);
 
     fclose (fd);
 
-    return -1;
-  }
-
-  if (fread (markov_stats_buf, sizeof (u64), SP_MARKOV_CNT, fd) != SP_MARKOV_CNT)
-  {
-    event_log_error (hashcat_ctx, "%s: Could not load data.", hcstat);
-
-    fclose (fd);
+    hcfree (inbuf);
 
     return -1;
   }
 
   fclose (fd);
+
+  u8 *outbuf = (u8 *) hcmalloc (SP_FILESZ);
+
+  SizeT outlen = SP_FILESZ;
+
+  const char props = 0x1c; // lzma properties constant, retrieved with 7z2hashcat
+
+  const SRes res = hc_lzma2_decompress (inbuf, &inlen, outbuf, &outlen, &props);
+
+  if (res != SZ_OK)
+  {
+    event_log_error (hashcat_ctx, "%s: Could not uncompress data.", hcstat);
+
+    hcfree (inbuf);
+    hcfree (outbuf);
+
+    return -1;
+  }
+
+  if (outlen != SP_FILESZ)
+  {
+    event_log_error (hashcat_ctx, "%s: Could not uncompress data.", hcstat);
+
+    hcfree (inbuf);
+    hcfree (outbuf);
+
+    return -1;
+  }
+
+  u64 *ptr = (u64 *) outbuf;
+
+  u64 v = *ptr++;
+  u64 z = *ptr++;
+
+  memcpy (root_stats_buf,   ptr, sizeof (u64) * SP_ROOT_CNT);   ptr += SP_ROOT_CNT;
+  memcpy (markov_stats_buf, ptr, sizeof (u64) * SP_MARKOV_CNT); // ptr += SP_MARKOV_CNT;
+
+  hcfree (inbuf);
+  hcfree (outbuf);
+
+  /**
+   * switch endianess
+   */
+
+  v = byte_swap_64 (v);
+  z = byte_swap_64 (z);
+
+  for (int i = 0; i < SP_ROOT_CNT; i++)   root_stats_buf[i]   = byte_swap_64 (root_stats_buf[i]);
+  for (int i = 0; i < SP_MARKOV_CNT; i++) markov_stats_buf[i] = byte_swap_64 (markov_stats_buf[i]);
+
+  /**
+   * verify header
+   */
+
+  if (v != SP_VERSION)
+  {
+    event_log_error (hashcat_ctx, "%s: Invalid header", hcstat);
+
+    return -1;
+  }
+
+  if (z != 0)
+  {
+    event_log_error (hashcat_ctx, "%s: Invalid header", hcstat);
+
+    return -1;
+  }
 
   /**
    * Markov modifier of hcstat_table on user request
@@ -1099,36 +1172,72 @@ int mask_ctx_update_loop (hashcat_ctx_t *hashcat_ctx)
     }
     else if ((user_options->attack_mode == ATTACK_MODE_HYBRID1) || (user_options->attack_mode == ATTACK_MODE_HYBRID2))
     {
-      mask_ctx->mask = mask_ctx->masks[mask_ctx->masks_pos];
-
-      const int rc_mask_file = mask_ctx_parse_maskfile (hashcat_ctx);
-
-      if (rc_mask_file == -1) return -1;
-
-      mask_ctx->css_buf = (cs_t *) hccalloc (256, sizeof (cs_t));
-
-      const int rc_gen_css = mp_gen_css (hashcat_ctx, mask_ctx->mask, strlen (mask_ctx->mask), mask_ctx->mp_sys, mask_ctx->mp_usr, mask_ctx->css_buf, &mask_ctx->css_cnt);
-
-      if (rc_gen_css == -1) return -1;
-
-      u32 uniq_tbls[SP_PW_MAX][CHARSIZ] = { { 0 } };
-
-      mp_css_to_uniq_tbl (hashcat_ctx, mask_ctx->css_cnt, mask_ctx->css_buf, uniq_tbls);
-
-      sp_tbl_to_css (mask_ctx->root_table_buf, mask_ctx->markov_table_buf, mask_ctx->root_css_buf, mask_ctx->markov_css_buf, user_options->markov_threshold, uniq_tbls);
-
-      const int rc_get_sum = sp_get_sum (0, mask_ctx->css_cnt, mask_ctx->root_css_buf, &combinator_ctx->combs_cnt);
-
-      if (rc_get_sum == -1)
+      if (((hashconfig->opti_type & OPTI_TYPE_OPTIMIZED_KERNEL) == 0) && (user_options->attack_mode == ATTACK_MODE_HYBRID2))
       {
-        event_log_error (hashcat_ctx, "Integer overflow detected in keyspace of mask: %s", mask_ctx->mask);
+        mask_ctx->mask = mask_ctx->masks[mask_ctx->masks_pos];
 
-        return -1;
+        const int rc_mask_file = mask_ctx_parse_maskfile (hashcat_ctx);
+
+        if (rc_mask_file == -1) return -1;
+
+        mask_ctx->css_buf = (cs_t *) hccalloc (256, sizeof (cs_t));
+
+        const int rc_gen_css = mp_gen_css (hashcat_ctx, mask_ctx->mask, strlen (mask_ctx->mask), mask_ctx->mp_sys, mask_ctx->mp_usr, mask_ctx->css_buf, &mask_ctx->css_cnt);
+
+        if (rc_gen_css == -1) return -1;
+
+        u32 uniq_tbls[SP_PW_MAX][CHARSIZ] = { { 0 } };
+
+        mp_css_to_uniq_tbl (hashcat_ctx, mask_ctx->css_cnt, mask_ctx->css_buf, uniq_tbls);
+
+        sp_tbl_to_css (mask_ctx->root_table_buf, mask_ctx->markov_table_buf, mask_ctx->root_css_buf, mask_ctx->markov_css_buf, user_options->markov_threshold, uniq_tbls);
+
+        const int rc_get_sum = sp_get_sum (0, mask_ctx->css_cnt, mask_ctx->root_css_buf, &mask_ctx->bfs_cnt);
+
+        if (rc_get_sum == -1)
+        {
+          event_log_error (hashcat_ctx, "Integer overflow detected in keyspace of mask: %s", mask_ctx->mask);
+
+          return -1;
+        }
+
+        const int rc_update_mp = opencl_session_update_mp (hashcat_ctx);
+
+        if (rc_update_mp == -1) return -1;
       }
+      else
+      {
+        mask_ctx->mask = mask_ctx->masks[mask_ctx->masks_pos];
 
-      const int rc_update_mp = opencl_session_update_mp (hashcat_ctx);
+        const int rc_mask_file = mask_ctx_parse_maskfile (hashcat_ctx);
 
-      if (rc_update_mp == -1) return -1;
+        if (rc_mask_file == -1) return -1;
+
+        mask_ctx->css_buf = (cs_t *) hccalloc (256, sizeof (cs_t));
+
+        const int rc_gen_css = mp_gen_css (hashcat_ctx, mask_ctx->mask, strlen (mask_ctx->mask), mask_ctx->mp_sys, mask_ctx->mp_usr, mask_ctx->css_buf, &mask_ctx->css_cnt);
+
+        if (rc_gen_css == -1) return -1;
+
+        u32 uniq_tbls[SP_PW_MAX][CHARSIZ] = { { 0 } };
+
+        mp_css_to_uniq_tbl (hashcat_ctx, mask_ctx->css_cnt, mask_ctx->css_buf, uniq_tbls);
+
+        sp_tbl_to_css (mask_ctx->root_table_buf, mask_ctx->markov_table_buf, mask_ctx->root_css_buf, mask_ctx->markov_css_buf, user_options->markov_threshold, uniq_tbls);
+
+        const int rc_get_sum = sp_get_sum (0, mask_ctx->css_cnt, mask_ctx->root_css_buf, &combinator_ctx->combs_cnt);
+
+        if (rc_get_sum == -1)
+        {
+          event_log_error (hashcat_ctx, "Integer overflow detected in keyspace of mask: %s", mask_ctx->mask);
+
+          return -1;
+        }
+
+        const int rc_update_mp = opencl_session_update_mp (hashcat_ctx);
+
+        if (rc_update_mp == -1) return -1;
+      }
     }
 
     const int rc_update_combinator = opencl_session_update_combinator (hashcat_ctx);
@@ -1261,11 +1370,12 @@ int mask_ctx_init (hashcat_ctx_t *hashcat_ctx)
 
   mask_ctx->enabled = false;
 
-  if (user_options->left        == true) return 0;
-  if (user_options->opencl_info == true) return 0;
-  if (user_options->show        == true) return 0;
-  if (user_options->usage       == true) return 0;
-  if (user_options->version     == true) return 0;
+  if (user_options->example_hashes == true) return 0;
+  if (user_options->left           == true) return 0;
+  if (user_options->opencl_info    == true) return 0;
+  if (user_options->show           == true) return 0;
+  if (user_options->usage          == true) return 0;
+  if (user_options->version        == true) return 0;
 
   if (user_options->attack_mode == ATTACK_MODE_STRAIGHT) return 0;
   if (user_options->attack_mode == ATTACK_MODE_COMBI)    return 0;

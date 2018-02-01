@@ -21,9 +21,18 @@ static double try_run (hashcat_ctx_t *hashcat_ctx, hc_device_param_t *device_par
 
   if (hashconfig->attack_exec == ATTACK_EXEC_INSIDE_KERNEL)
   {
-    const u32 kernel_power_try = device_param->device_processors * device_param->kernel_threads_by_wgs_kernel1 * kernel_accel;
+    if (hashconfig->opti_type & OPTI_TYPE_OPTIMIZED_KERNEL)
+    {
+      const u32 kernel_power_try = device_param->device_processors * device_param->kernel_threads_by_wgs_kernel1 * kernel_accel;
 
-    run_kernel (hashcat_ctx, device_param, KERN_RUN_1, kernel_power_try, true, 0);
+      run_kernel (hashcat_ctx, device_param, KERN_RUN_1, kernel_power_try, true, 0);
+    }
+    else
+    {
+      const u32 kernel_power_try = device_param->device_processors * device_param->kernel_threads_by_wgs_kernel4 * kernel_accel;
+
+      run_kernel (hashcat_ctx, device_param, KERN_RUN_4, kernel_power_try, true, 0);
+    }
   }
   else
   {
@@ -39,10 +48,9 @@ static double try_run (hashcat_ctx_t *hashcat_ctx, hc_device_param_t *device_par
 
 static int autotune (hashcat_ctx_t *hashcat_ctx, hc_device_param_t *device_param)
 {
-  hashconfig_t         *hashconfig         = hashcat_ctx->hashconfig;
-  opencl_ctx_t         *opencl_ctx         = hashcat_ctx->opencl_ctx;
-  straight_ctx_t       *straight_ctx       = hashcat_ctx->straight_ctx;
-  user_options_extra_t *user_options_extra = hashcat_ctx->user_options_extra;
+  const hashconfig_t    *hashconfig   = hashcat_ctx->hashconfig;
+  const opencl_ctx_t    *opencl_ctx   = hashcat_ctx->opencl_ctx;
+  const straight_ctx_t  *straight_ctx = hashcat_ctx->straight_ctx;
 
   const double target_msec = opencl_ctx->target_msec;
 
@@ -95,25 +103,16 @@ static int autotune (hashcat_ctx_t *hashcat_ctx, hc_device_param_t *device_param
 
   int CL_rc;
 
-  if (user_options_extra->attack_kern == ATTACK_KERN_BF)
+  for (u32 i = 0; i < kernel_power_max; i++)
   {
-    CL_rc = run_kernel_memset (hashcat_ctx, device_param, device_param->d_pws_buf, 7, kernel_power_max * sizeof (pw_t));
-
-    if (CL_rc == -1) return -1;
+    device_param->pws_buf[i].i[0]   = i;
+    device_param->pws_buf[i].i[1]   = 0x01234567;
+    device_param->pws_buf[i].pw_len = 7 + (i & 7);
   }
-  else
-  {
-    for (u32 i = 0; i < kernel_power_max; i++)
-    {
-      device_param->pws_buf[i].i[0]   = i;
-      device_param->pws_buf[i].i[1]   = 0x01234567;
-      device_param->pws_buf[i].pw_len = 7 + (i & 7);
-    }
 
-    CL_rc = hc_clEnqueueWriteBuffer (hashcat_ctx, device_param->command_queue, device_param->d_pws_buf, CL_TRUE, 0, kernel_power_max * sizeof (pw_t), device_param->pws_buf, 0, NULL, NULL);
+  CL_rc = hc_clEnqueueWriteBuffer (hashcat_ctx, device_param->command_queue, device_param->d_pws_buf, CL_TRUE, 0, kernel_power_max * sizeof (pw_t), device_param->pws_buf, 0, NULL, NULL);
 
-    if (CL_rc == -1) return -1;
-  }
+  if (CL_rc == -1) return -1;
 
   if (hashconfig->attack_exec == ATTACK_EXEC_INSIDE_KERNEL)
   {
@@ -126,9 +125,38 @@ static int autotune (hashcat_ctx_t *hashcat_ctx, hc_device_param_t *device_param
   }
   else
   {
+    CL_rc = hc_clEnqueueCopyBuffer (hashcat_ctx, device_param->command_queue, device_param->d_pws_buf, device_param->d_pws_amp_buf, 0, 0, kernel_power_max * sizeof (pw_t), 0, NULL, NULL);
+
+    if (CL_rc == -1) return -1;
+
     CL_rc = run_kernel_amp (hashcat_ctx, device_param, kernel_power_max);
 
     if (CL_rc == -1) return -1;
+  }
+
+  // Do a pre-autotune test run to find out if kernel runtime is above some TDR limit
+
+  u32 kernel_loops_max_reduced = kernel_loops_max;
+
+  if (1)
+  {
+    const double exec_msec = try_run (hashcat_ctx, device_param, kernel_accel_min, kernel_loops_min);
+
+    if (exec_msec > 2000)
+    {
+      event_log_error (hashcat_ctx, "OpenCL kernel minimum runtime larger than default TDR");
+
+      return -1;
+    }
+
+    const u32 mm = kernel_loops_max / kernel_loops_min;
+
+    if ((exec_msec * mm) > target_msec)
+    {
+      const u32 loops_valid = target_msec / exec_msec;
+
+      kernel_loops_max_reduced = kernel_loops_min * loops_valid;
+    }
   }
 
   #define VERIFIER_CNT 1
@@ -139,6 +167,8 @@ static int autotune (hashcat_ctx_t *hashcat_ctx, hc_device_param_t *device_param
   {
     for (kernel_loops = kernel_loops_max; kernel_loops > kernel_loops_min; kernel_loops >>= 1)
     {
+      if (kernel_loops > kernel_loops_max_reduced) continue;
+
       double exec_msec = try_run (hashcat_ctx, device_param, kernel_accel_min, kernel_loops);
 
       for (int i = 0; i < VERIFIER_CNT; i++)
@@ -263,7 +293,7 @@ static int autotune (hashcat_ctx_t *hashcat_ctx, hc_device_param_t *device_param
 
   if (hashconfig->attack_exec == ATTACK_EXEC_OUTSIDE_KERNEL)
   {
-    CL_rc = run_kernel_memset (hashcat_ctx, device_param, device_param->d_pws_amp_buf, 0, device_param->size_pws);
+    CL_rc = run_kernel_memset (hashcat_ctx, device_param, device_param->d_pws_amp_buf, 0, device_param->size_pws_amp);
 
     if (CL_rc == -1) return -1;
   }
@@ -291,6 +321,7 @@ static int autotune (hashcat_ctx_t *hashcat_ctx, hc_device_param_t *device_param
   memset (device_param->exec_us_prev1,      0, EXPECTED_ITERATIONS * sizeof (double));
   memset (device_param->exec_us_prev2,      0, EXPECTED_ITERATIONS * sizeof (double));
   memset (device_param->exec_us_prev3,      0, EXPECTED_ITERATIONS * sizeof (double));
+  memset (device_param->exec_us_prev4,      0, EXPECTED_ITERATIONS * sizeof (double));
   memset (device_param->exec_us_prev_init2, 0, EXPECTED_ITERATIONS * sizeof (double));
   memset (device_param->exec_us_prev_loop2, 0, EXPECTED_ITERATIONS * sizeof (double));
 

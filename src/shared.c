@@ -173,24 +173,6 @@ int hc_fstat (int fd, hc_stat_t *buf)
 }
 #endif
 
-void hc_sleep_msec (const u32 msec)
-{
-  #if defined (_WIN)
-  Sleep (msec);
-  #else
-  usleep (msec * 1000);
-  #endif
-}
-
-void hc_sleep (const u32 sec)
-{
-  #if defined (_WIN)
-  Sleep (sec * 1000);
-  #else
-  sleep (sec);
-  #endif
-}
-
 #if defined (_WIN)
 #define __WINDOWS__
 #endif
@@ -322,11 +304,13 @@ void setup_environment_variables ()
 
   if (compute)
   {
-    static char display[100];
+    char *display;
 
-    snprintf (display, sizeof (display) - 1, "DISPLAY=%s", compute);
+    hc_asprintf (&display, "DISPLAY=%s", compute);
 
     putenv (display);
+
+    free (display);
   }
   else
   {
@@ -334,32 +318,8 @@ void setup_environment_variables ()
       putenv ((char *) "DISPLAY=:0");
   }
 
-  if (getenv ("GPU_FORCE_64BIT_PTR") == NULL)
-    putenv ((char *) "GPU_FORCE_64BIT_PTR=1");
-
-  if (getenv ("GPU_MAX_ALLOC_PERCENT") == NULL)
-    putenv ((char *) "GPU_MAX_ALLOC_PERCENT=100");
-
-  if (getenv ("GPU_SINGLE_ALLOC_PERCENT") == NULL)
-    putenv ((char *) "GPU_SINGLE_ALLOC_PERCENT=100");
-
-  if (getenv ("GPU_MAX_HEAP_SIZE") == NULL)
-    putenv ((char *) "GPU_MAX_HEAP_SIZE=100");
-
-  if (getenv ("CPU_FORCE_64BIT_PTR") == NULL)
-    putenv ((char *) "CPU_FORCE_64BIT_PTR=1");
-
-  if (getenv ("CPU_MAX_ALLOC_PERCENT") == NULL)
-    putenv ((char *) "CPU_MAX_ALLOC_PERCENT=100");
-
-  if (getenv ("CPU_SINGLE_ALLOC_PERCENT") == NULL)
-    putenv ((char *) "CPU_SINGLE_ALLOC_PERCENT=100");
-
-  if (getenv ("CPU_MAX_HEAP_SIZE") == NULL)
-    putenv ((char *) "CPU_MAX_HEAP_SIZE=100");
-
-  if (getenv ("GPU_USE_SYNC_OBJECTS") == NULL)
-    putenv ((char *) "GPU_USE_SYNC_OBJECTS=1");
+  if (getenv ("OCL_CODE_CACHE_ENABLE") == NULL)
+    putenv ((char *) "OCL_CODE_CACHE_ENABLE=0");
 
   if (getenv ("CUDA_CACHE_DISABLE") == NULL)
     putenv ((char *) "CUDA_CACHE_DISABLE=1");
@@ -381,9 +341,9 @@ void setup_seeding (const bool rp_gen_seed_chgd, const u32 rp_gen_seed)
   }
   else
   {
-    time_t ts;
+    hc_time_t ts;
 
-    time (&ts);
+    hc_time (&ts);
 
     srand (ts);
   }
@@ -397,27 +357,13 @@ u32 get_random_num (const u32 min, const u32 max)
 
   if (low == 0) return (0);
 
-  #if defined (__linux__)
+  #if defined (_WIN)
 
-  u32 data;
-
-  FILE *fp = fopen ("/dev/urandom", "rb");
-
-  if (fp == NULL) return (0);
-
-  const int nread = fread (&data, sizeof (u32), 1, fp);
-
-  fclose (fp);
-
-  if (nread != 1) return 0;
-
-  u64 r = data % low; r += min;
-
-  return (u32) r;
+  return (((u32) rand () % (max - min)) + min);
 
   #else
 
-  return (((u32) rand () % (max - min)) + min);
+  return (((u32) random () % (max - min)) + min);
 
   #endif
 }
@@ -466,4 +412,140 @@ void hc_string_trim_trailing (char *s)
   const size_t new_len = len - skip;
 
   s[new_len] = 0;
+}
+
+size_t hc_fread (void *ptr, size_t size, size_t nmemb, FILE *stream)
+{
+  return fread (ptr, size, nmemb, stream);
+}
+
+void hc_fwrite (const void *ptr, size_t size, size_t nmemb, FILE *stream)
+{
+  size_t rc = fwrite (ptr, size, nmemb, stream);
+
+  if (rc == 0) rc = 0;
+}
+
+
+hc_time_t hc_time (hc_time_t *t)
+{
+  #if defined (_WIN)
+  return _time64 (t);
+  #else
+  return time (t);
+  #endif
+}
+
+struct tm *hc_gmtime (const hc_time_t *t, MAYBE_UNUSED struct tm *result)
+{
+  #if defined (_WIN)
+  return _gmtime64 (t);
+  #else
+  return gmtime_r (t, result);
+  #endif
+}
+
+char *hc_ctime (const hc_time_t *t, char *buf, MAYBE_UNUSED const size_t buf_size)
+{
+  char *etc = NULL;
+
+  #if defined (_WIN)
+  etc = _ctime64 (t);
+
+  if (etc != NULL)
+  {
+    snprintf (buf, buf_size, "%s", etc);
+  }
+  #else
+  etc = ctime_r (t, buf); // buf should have room for at least 26 bytes
+  #endif
+
+  return etc;
+}
+
+bool hc_same_files (char *file1, char *file2)
+{
+  if ((file1 != NULL) && (file2 != NULL))
+  {
+    hc_stat_t tmpstat_file1;
+    hc_stat_t tmpstat_file2;
+
+    int do_check = 0;
+
+    FILE *fp;
+
+    fp = fopen (file1, "r");
+
+    if (fp)
+    {
+      if (hc_fstat (fileno (fp), &tmpstat_file1))
+      {
+        fclose (fp);
+
+        return false;
+      }
+
+      fclose (fp);
+
+      do_check++;
+    }
+
+    fp = fopen (file2, "r");
+
+    if (fp)
+    {
+      if (hc_fstat (fileno (fp), &tmpstat_file2))
+      {
+        fclose (fp);
+
+        return false;
+      }
+
+      fclose (fp);
+
+      do_check++;
+    }
+
+    if (do_check == 2)
+    {
+      tmpstat_file1.st_mode     = 0;
+      tmpstat_file1.st_nlink    = 0;
+      tmpstat_file1.st_uid      = 0;
+      tmpstat_file1.st_gid      = 0;
+      tmpstat_file1.st_rdev     = 0;
+      tmpstat_file1.st_atime    = 0;
+
+      #if defined (STAT_NANOSECONDS_ACCESS_TIME)
+      tmpstat_file1.STAT_NANOSECONDS_ACCESS_TIME = 0;
+      #endif
+
+      #if defined (_POSIX)
+      tmpstat_file1.st_blksize  = 0;
+      tmpstat_file1.st_blocks   = 0;
+      #endif
+
+      tmpstat_file2.st_mode     = 0;
+      tmpstat_file2.st_nlink    = 0;
+      tmpstat_file2.st_uid      = 0;
+      tmpstat_file2.st_gid      = 0;
+      tmpstat_file2.st_rdev     = 0;
+      tmpstat_file2.st_atime    = 0;
+
+      #if defined (STAT_NANOSECONDS_ACCESS_TIME)
+      tmpstat_file2.STAT_NANOSECONDS_ACCESS_TIME = 0;
+      #endif
+
+      #if defined (_POSIX)
+      tmpstat_file2.st_blksize  = 0;
+      tmpstat_file2.st_blocks   = 0;
+      #endif
+
+      if (memcmp (&tmpstat_file1, &tmpstat_file2, sizeof (hc_stat_t)) == 0)
+      {
+        return true;
+      }
+    }
+  }
+
+  return false;
 }

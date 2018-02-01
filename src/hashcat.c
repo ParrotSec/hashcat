@@ -43,12 +43,12 @@
 #include "potfile.h"
 #include "restore.h"
 #include "rp.h"
+#include "selftest.h"
 #include "status.h"
 #include "straight.h"
 #include "tuningdb.h"
 #include "usage.h"
 #include "user_options.h"
-#include "weak_hash.h"
 #include "wordlist.h"
 
 // inner2_loop iterates through wordlists, then calls kernel execution
@@ -116,13 +116,17 @@ static int inner2_loop (hashcat_ctx_t *hashcat_ctx)
    * Update attack-mode specific stuff based on mask
    */
 
-  mask_ctx_update_loop (hashcat_ctx);
+  const int rc_mask_ctx_update_loop = mask_ctx_update_loop (hashcat_ctx);
+
+  if (rc_mask_ctx_update_loop == -1) return 0;
 
   /**
    * Update attack-mode specific stuff based on wordlist
    */
 
-  straight_ctx_update_loop (hashcat_ctx);
+  const int rc_straight_ctx_update_loop = straight_ctx_update_loop (hashcat_ctx);
+
+  if (rc_straight_ctx_update_loop == -1) return 0;
 
   // words base
 
@@ -154,19 +158,24 @@ static int inner2_loop (hashcat_ctx_t *hashcat_ctx)
    * limit kernel loops by the amplification count we have from:
    * - straight_ctx, combinator_ctx or mask_ctx for fast hashes
    * - hash iteration count for slow hashes
+   * this is required for autotune
    */
 
   opencl_ctx_devices_kernel_loops (hashcat_ctx);
+
+  /**
+   * prepare thread buffers
+   */
+
+  thread_param_t *threads_param = (thread_param_t *) hccalloc (opencl_ctx->devices_cnt, sizeof (thread_param_t));
+
+  hc_thread_t *c_threads = (hc_thread_t *) hccalloc (opencl_ctx->devices_cnt, sizeof (hc_thread_t));
 
   /**
    * create autotune threads
    */
 
   EVENT (EVENT_AUTOTUNE_STARTING);
-
-  thread_param_t *threads_param = (thread_param_t *) hccalloc (opencl_ctx->devices_cnt, sizeof (thread_param_t));
-
-  hc_thread_t *c_threads = (hc_thread_t *) hccalloc (opencl_ctx->devices_cnt, sizeof (hc_thread_t));
 
   status_ctx->devices_status = STATUS_AUTOTUNE;
 
@@ -205,9 +214,9 @@ static int inner2_loop (hashcat_ctx_t *hashcat_ctx)
 
   hc_timer_set (&status_ctx->timer_running);
 
-  time_t runtime_start;
+  hc_time_t runtime_start;
 
-  time (&runtime_start);
+  hc_time (&runtime_start);
 
   status_ctx->runtime_start = runtime_start;
 
@@ -261,9 +270,9 @@ static int inner2_loop (hashcat_ctx_t *hashcat_ctx)
 
   // update some timer
 
-  time_t runtime_stop;
+  hc_time_t runtime_stop;
 
-  time (&runtime_stop);
+  hc_time (&runtime_stop);
 
   status_ctx->runtime_stop = runtime_stop;
 
@@ -410,7 +419,12 @@ static int outer_loop (hashcat_ctx_t *hashcat_ctx)
 
   const int rc_hashconfig = hashconfig_init (hashcat_ctx);
 
-  if (rc_hashconfig == -1) return -1;
+  if (rc_hashconfig == -1)
+  {
+    event_log_error (hashcat_ctx, "Unknown hash-type '%u' selected.", user_options->hash_mode);
+
+    return -1;
+  }
 
   /**
    * load hashes, stage 1
@@ -487,7 +501,8 @@ static int outer_loop (hashcat_ctx_t *hashcat_ctx)
 
     return 0;
   }
-  else if (user_options->left == true)
+
+  if (user_options->left == true)
   {
     outfile_write_open (hashcat_ctx);
 
@@ -528,6 +543,14 @@ static int outer_loop (hashcat_ctx_t *hashcat_ctx)
   const int rc_hashes_init_stage4 = hashes_init_stage4 (hashcat_ctx);
 
   if (rc_hashes_init_stage4 == -1) return -1;
+
+  /**
+   * load hashes, selftest
+   */
+
+  const int rc_hashes_init_selftest = hashes_init_selftest (hashcat_ctx);
+
+  if (rc_hashes_init_selftest == -1) return -1;
 
   /**
    * Done loading hashes, log results
@@ -646,69 +669,45 @@ static int outer_loop (hashcat_ctx_t *hashcat_ctx)
   EVENT (EVENT_OPENCL_SESSION_POST);
 
   /**
-   * weak hash check is the first to write to potfile, so open it for writing from here
+   * create self-test threads
+   */
+
+  EVENT (EVENT_SELFTEST_STARTING);
+
+  thread_param_t *threads_param = (thread_param_t *) hccalloc (opencl_ctx->devices_cnt, sizeof (thread_param_t));
+
+  hc_thread_t *selftest_threads = (hc_thread_t *) hccalloc (opencl_ctx->devices_cnt, sizeof (hc_thread_t));
+
+  status_ctx->devices_status = STATUS_SELFTEST;
+
+  for (u32 device_id = 0; device_id < opencl_ctx->devices_cnt; device_id++)
+  {
+    thread_param_t *thread_param = threads_param + device_id;
+
+    thread_param->hashcat_ctx = hashcat_ctx;
+    thread_param->tid         = device_id;
+
+    hc_thread_create (selftest_threads[device_id], thread_selftest, thread_param);
+  }
+
+  hc_thread_wait (opencl_ctx->devices_cnt, selftest_threads);
+
+  hcfree (threads_param);
+
+  hcfree (selftest_threads);
+
+  status_ctx->devices_status = STATUS_INIT;
+
+  EVENT (EVENT_SELFTEST_FINISHED);
+
+  /**
+   * (old) weak hash check is the first to write to potfile, so open it for writing from here
+   * the weak hash check was removed maybe we can move this more to the bottom now
    */
 
   const int rc_potfile_write = potfile_write_open (hashcat_ctx);
 
   if (rc_potfile_write == -1) return -1;
-
-  /**
-   * weak hash check
-   */
-
-  if (user_options->weak_hash_threshold >= hashes->salts_cnt)
-  {
-    hc_device_param_t *device_param = NULL;
-
-    for (u32 device_id = 0; device_id < opencl_ctx->devices_cnt; device_id++)
-    {
-      device_param = &opencl_ctx->devices_param[device_id];
-
-      if (device_param->skipped == true) continue;
-
-      break;
-    }
-
-    if (device_param == NULL)
-    {
-      event_log_error (hashcat_ctx, "No device found for weak-hash check.");
-
-      return -1;
-    }
-
-    EVENT (EVENT_WEAK_HASH_PRE);
-
-    for (u32 salt_pos = 0; salt_pos < hashes->salts_cnt; salt_pos++)
-    {
-      const int CL_rc = weak_hash_check (hashcat_ctx, device_param, salt_pos);
-
-      if (CL_rc == -1) return -1;
-    }
-
-    EVENT (EVENT_WEAK_HASH_POST);
-  }
-
-  /**
-   * maybe all hashes were cracked now (as after potfile checks), we can exit here
-   */
-
-  if (status_ctx->devices_status == STATUS_CRACKED)
-  {
-    if ((user_options->remove == true) && (hashes->hashlist_mode == HL_MODE_FILE))
-    {
-      if (hashes->digests_saved != hashes->digests_done)
-      {
-        const int rc = save_hash (hashcat_ctx);
-
-        if (rc == -1) return -1;
-      }
-    }
-
-    EVENT (EVENT_WEAK_HASH_ALL_CRACKED);
-
-    return 0;
-  }
 
   /**
    * status and monitor threads
@@ -1087,7 +1086,7 @@ int hashcat_session_execute (hashcat_ctx_t *hashcat_ctx)
 
   // start logfile entry
 
-  const time_t proc_start = time (NULL);
+  const hc_time_t proc_start = hc_time (NULL);
 
   logfile_generate_topid (hashcat_ctx);
 
@@ -1158,7 +1157,7 @@ int hashcat_session_execute (hashcat_ctx_t *hashcat_ctx)
 
   // final logfile entry
 
-  const time_t proc_stop = time (NULL);
+  const hc_time_t proc_stop = hc_time (NULL);
 
   logfile_top_uint (proc_start);
   logfile_top_uint (proc_stop);

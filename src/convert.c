@@ -97,6 +97,12 @@ bool is_hexify (const u8 *buf, const int len)
 {
   if (len < 6) return false; // $HEX[] = 6
 
+  // length of the hex string must be a multiple of 2
+  // and the length of "$HEX[]" is 6 (also an even length)
+  // Therefore the overall length must be an even number:
+
+  if ((len & 1) == 1) return false;
+
   if (buf[0]       != '$') return (false);
   if (buf[1]       != 'H') return (false);
   if (buf[2]       != 'E') return (false);
@@ -152,12 +158,22 @@ bool need_hexify (const u8 *buf, const int len, const char separator, bool alway
     }
   }
 
+  // also test if the password is of the format $HEX[]:
+
+  if (rc == false)
+  {
+    if (is_hexify (buf, len))
+    {
+      rc = true;
+    }
+  }
+
   return rc;
 }
 
 void exec_hexify (const u8 *buf, const int len, u8 *out)
 {
-  const int max_len = (len >= 31) ? 31 : len;
+  const int max_len = (len >= PW_MAX) ? PW_MAX : len;
 
   for (int i = max_len - 1, j = i * 2; i >= 0; i -= 1, j -= 2)
   {
@@ -197,8 +213,8 @@ u8 hex_to_u8 (const u8 hex[2])
 {
   u8 v = 0;
 
-  v |= ((u8) hex_convert (hex[1]) << 0);
-  v |= ((u8) hex_convert (hex[0]) << 4);
+  v |= (hex_convert (hex[1]) << 0);
+  v |= (hex_convert (hex[0]) << 4);
 
   return (v);
 }
@@ -312,8 +328,8 @@ u8 int_to_base32 (const u8 c)
 
 u8 base32_to_int (const u8 c)
 {
-       if ((c >= 'A') && (c <= 'Z')) return c - 'A';
-  else if ((c >= '2') && (c <= '7')) return c - '2' + 26;
+  if ((c >= 'A') && (c <= 'Z')) return c - 'A';
+  if ((c >= '2') && (c <= '7')) return c - '2' + 26;
 
   return 0;
 }
@@ -331,8 +347,8 @@ u8 int_to_itoa32 (const u8 c)
 
 u8 itoa32_to_int (const u8 c)
 {
-       if ((c >= '0') && (c <= '9')) return c - '0';
-  else if ((c >= 'a') && (c <= 'v')) return c - 'a' + 10;
+  if ((c >= '0') && (c <= '9')) return c - '0';
+  if ((c >= 'a') && (c <= 'v')) return c - 'a' + 10;
 
   return 0;
 }
@@ -453,23 +469,22 @@ u8 bf64_to_int (const u8 c)
 
 u8 int_to_lotus64 (const u8 c)
 {
-       if (c  < 10) return '0' + c;
-  else if (c  < 36) return 'A' + c - 10;
-  else if (c  < 62) return 'a' + c - 36;
-  else if (c == 62) return '+';
-  else if (c == 63) return '/';
+  if (c  < 10) return '0' + c;
+  if (c  < 36) return 'A' + c - 10;
+  if (c  < 62) return 'a' + c - 36;
+  if (c == 62) return '+';
+  if (c == 63) return '/';
 
   return 0;
 }
 
 u8 lotus64_to_int (const u8 c)
 {
-       if ((c >= '0') && (c <= '9')) return c - '0';
-  else if ((c >= 'A') && (c <= 'Z')) return c - 'A' + 10;
-  else if ((c >= 'a') && (c <= 'z')) return c - 'a' + 36;
-  else if (c == '+') return 62;
-  else if (c == '/') return 63;
-  else
+  if ((c >= '0') && (c <= '9')) return c - '0';
+  if ((c >= 'A') && (c <= 'Z')) return c - 'A' + 10;
+  if ((c >= 'a') && (c <= 'z')) return c - 'a' + 36;
+  if (c == '+') return 62;
+  if (c == '/') return 63;
 
   return 0;
 }
