@@ -1,6 +1,6 @@
 OpenCL /usr/share/hashcat/
 charsets usr/share/hashcat/
-hashcat.hcstat /usr/share/hashcat
+hashcat.hcstat2 /usr/share/hashcat
 hashcat.hctune /usr/share/hashcat
 masks  /usr/share/hashcat
 rules usr/share/hashcat/

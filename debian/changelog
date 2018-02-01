@@ -1,3 +1,9 @@
+hashcat (4.0.1-1parrot1) testing; urgency=medium
+
+  * Import new upstream release.
+
+ -- Lorenzo "Palinuro" Faletra <palinuro@parrotsec.org>  Thu, 01 Feb 2018 14:27:10 +0100
+
 hashcat (3.60-1) unstable; urgency=medium
 
   * Team upload.
