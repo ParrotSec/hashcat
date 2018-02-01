@@ -8,16 +8,18 @@
 
 #define PROGNAME "hashcat"
 
-#if   defined (__unix__) || defined (__APPLE__)
+#if defined (__unix__) || defined (__APPLE__)
 #define _POSIX
-#elif defined (__WINNT__)
+#elif defined (_WIN32)
 #define _WIN 1
 #else
 #error Your Operating System is not supported or detected
 #endif
 
+#if defined (__BYTE_ORDER__) && defined (__ORDER_BIG_ENDIAN__)
 #if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
 #error "compiling for big-endian architecture not supported"
+#endif
 #endif
 
 #ifndef _GNU_SOURCE
@@ -73,14 +75,33 @@ but this is nededed for VS compiler which doesn't have inline keyword but has __
 
 #define MAYBE_UNUSED __attribute__((unused))
 
+/*
+ * Check if the system uses nanoseconds for file timestamps.
+ * In case the system uses nanoseconds we set some custom macros here,
+ * e.g. the (nanosecond) access time macros for dictstat
+ */
+
+#if defined (__linux__)
+#include <linux/version.h>
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,48)
+#define STAT_NANOSECONDS_ACCESS_TIME st_atim.tv_nsec
+#endif
+#endif
+
+#if defined (__APPLE__)
+#define STAT_NANOSECONDS_ACCESS_TIME st_atimespec.tv_nsec
+#endif
+
 // config section
 // do not try to simply change this, it will not work
 
 #define PW_MIN              0
-#define PW_MAX              54
-#define PW_MAX1             (PW_MAX + 1)
-#define PW_DICTMAX          31
-#define PW_DICTMAX1         (PW_DICTMAX + 1)
+#define PW_MAX              256
+#define PW_MAX_OLD          55
+
+#define SALT_MIN            0
+#define SALT_MAX            256
+#define SALT_MAX_OLD        51
 
 #define HCBUFSIZ_TINY       0x1000
 #define HCBUFSIZ_LARGE      0x50000
@@ -91,7 +112,6 @@ but this is nededed for VS compiler which doesn't have inline keyword but has __
 #define EXEC_CACHE          128
 #define SPEED_CACHE         128
 #define SPEED_MAXAGE        4096
-#define BLOCK_SIZE          64
 #define EXPECTED_ITERATIONS 10000
 
 #if defined (_WIN)

@@ -25,13 +25,37 @@
 #elif DEVICE_TYPE == DEVICE_TYPE_ACCEL
 #endif
 
+#ifdef REAL_SHM
+#define SHM_TYPE __local
+#define SCR_TYPE __local
+#else
+#define SHM_TYPE __constant
+#define SCR_TYPE
+#endif
+
 /**
  * vendor specific
  */
 
 #if   VENDOR_ID == (1 << 0)
+#if   AMD_ROCM == 0
 #define IS_AMD
-//#define IS_GENERIC
+#define AMD_GCN 0
+#else
+#define IS_AMD
+#if   defined __gfx600__ || defined __gfx601__
+#define AMD_GCN 1
+#elif defined __gfx700__ || defined __gfx701__ || defined __gfx702__ || defined __gfx703__
+#define AMD_GCN 2
+#elif defined __gfx800__ || defined __gfx801__ || defined __gfx802__ || defined __gfx803__ || defined __gfx804__ || defined __gfx810__
+#define AMD_GCN 3
+// According to AMD docs, GCN 3 and 4 are the same
+#elif defined __gfx900__ || defined __gfx901__ || defined __gfx902__ || defined __gfx903__
+#define AMD_GCN 5
+#else
+#define AMD_GCN 0
+#endif
+#endif
 #elif VENDOR_ID == (1 << 1)
 #define IS_APPLE
 #define IS_GENERIC
@@ -46,7 +70,6 @@
 #define IS_GENERIC
 #elif VENDOR_ID == (1 << 5)
 #define IS_NV
-//#define IS_GENERIC
 #elif VENDOR_ID == (1 << 6)
 #define IS_POCL
 #define IS_GENERIC
@@ -117,16 +140,13 @@
 #if KERN_TYPE == 7400
 #undef _unroll
 #endif
-#if KERN_TYPE == 8200
+#if KERN_TYPE == 7900
 #undef _unroll
 #endif
 #if KERN_TYPE == 8900
 #undef _unroll
 #endif
 #if KERN_TYPE == 10700
-#undef _unroll
-#endif
-#if KERN_TYPE == 12300
 #undef _unroll
 #endif
 #if KERN_TYPE == 13721
@@ -150,6 +170,9 @@
 #if KERN_TYPE == 13800
 #undef _unroll
 #endif
+#if KERN_TYPE == 15700
+#undef _unroll
+#endif
 
 // nvidia specific
 
@@ -162,19 +185,7 @@
 #if KERN_TYPE == 3000
 #undef _unroll
 #endif
-#if KERN_TYPE == 3200
-#undef _unroll
-#endif
-#if KERN_TYPE == 7900
-#undef _unroll
-#endif
-#if KERN_TYPE == 10500
-#undef _unroll
-#endif
 #if KERN_TYPE == 14000
-#undef _unroll
-#endif
-#if KERN_TYPE == 14100
 #undef _unroll
 #endif
 
@@ -186,34 +197,22 @@
 #ifdef IS_AMD
 #ifdef IS_GPU
 
-#if KERN_TYPE == 1700
-#undef _unroll
-#endif
-#if KERN_TYPE == 1710
-#undef _unroll
-#endif
-#if KERN_TYPE == 5200
-#undef _unroll
-#endif
 #if KERN_TYPE == 8000
 #undef _unroll
 #endif
-#if KERN_TYPE == 10400
+#if KERN_TYPE == 8200
 #undef _unroll
 #endif
-#if KERN_TYPE == 10410
+#if KERN_TYPE == 12300
 #undef _unroll
 #endif
-#if KERN_TYPE == 10800
+#if KERN_TYPE == 14100
 #undef _unroll
 #endif
-#if KERN_TYPE == 10900
+#if KERN_TYPE == 15300
 #undef _unroll
 #endif
-#if KERN_TYPE == 12800
-#undef _unroll
-#endif
-#if KERN_TYPE == 12900
+#if KERN_TYPE == 15900
 #undef _unroll
 #endif
 

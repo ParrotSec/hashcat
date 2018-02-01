@@ -13,10 +13,10 @@
 #include <limits.h>
 
 /**
- * weak hashes shutcut
+ * zero hashes shutcut
  */
 
-static const char LM_WEAK_HASH[]    = "aad3b435b51404ee";
+static const char LM_ZERO_HASH[]    = "aad3b435b51404ee";
 static const char LM_MASKED_PLAIN[] = "[notfound]";
 
 /**
@@ -178,7 +178,7 @@ typedef struct pdf
 
 typedef struct wpa
 {
-  u32  pke[25];
+  u32  pke[32];
   u32  eapol[64 + 16];
   u16  eapol_len;
   u8   message_pair;
@@ -211,10 +211,10 @@ typedef struct bitcoin_wallet
 
 typedef struct sip
 {
-  u32 salt_buf[30];
+  u32 salt_buf[32];
   u32 salt_len;
 
-  u32 esalt_buf[38];
+  u32 esalt_buf[48];
   u32 esalt_len;
 
 } sip_t;
@@ -291,7 +291,7 @@ typedef struct keepass
 
 typedef struct tc
 {
-  u32 salt_buf[16];
+  u32 salt_buf[32];
   u32 data_buf[112];
   u32 keyfile_buf[16];
   u32 signature;
@@ -426,7 +426,6 @@ typedef struct psafe3
 
 typedef struct dpapimk
 {
-  u32 version;
   u32 context;
 
   u32 SID[32];
@@ -518,23 +517,29 @@ typedef struct md5crypt_tmp
 
 } md5crypt_tmp_t;
 
-typedef struct sha512crypt_tmp
-{
-  u64  l_alt_result[8];
-
-  u64  l_p_bytes[2];
-  u64  l_s_bytes[2];
-
-} sha512crypt_tmp_t;
-
 typedef struct sha256crypt_tmp
 {
-  u32 alt_result[8];
+  // pure version
 
-  u32 p_bytes[4];
-  u32 s_bytes[4];
+  u32 alt_result[8];
+  u32 p_bytes[64];
+  u32 s_bytes[64];
 
 } sha256crypt_tmp_t;
+
+typedef struct sha512crypt_tmp
+{
+  u64 l_alt_result[8];
+  u64 l_p_bytes[2];
+  u64 l_s_bytes[2];
+
+  // pure version
+
+  u32 alt_result[16];
+  u32 p_bytes[64];
+  u32 s_bytes[64];
+
+} sha512crypt_tmp_t;
 
 typedef struct wpa_tmp
 {
@@ -545,6 +550,12 @@ typedef struct wpa_tmp
   u32 out[10];
 
 } wpa_tmp_t;
+
+typedef struct wpapmk_tmp
+{
+  u32 out[8];
+
+} wpapmk_tmp_t;
 
 typedef struct bitcoin_wallet_tmp
 {
@@ -645,11 +656,8 @@ typedef struct mywallet_tmp
   u32 ipad[5];
   u32 opad[5];
 
-  u32 dgst1[5];
-  u32 out1[5];
-
-  u32 dgst2[5];
-  u32 out2[5];
+  u32 dgst[10];
+  u32 out[10];
 
 } mywallet_tmp_t;
 
@@ -802,12 +810,14 @@ typedef struct oraclet_tmp
 
 typedef struct seven_zip_tmp
 {
-  u32 block[16];
+  u32 h[8];
 
-  u32 dgst[8];
+  u32 w0[4];
+  u32 w1[4];
+  u32 w2[4];
+  u32 w3[4];
 
-  u32 block_len;
-  u32 final_len;
+  int len;
 
 } seven_zip_tmp_t;
 
@@ -871,9 +881,8 @@ typedef struct keepass_tmp
 
 } keepass_tmp_t;
 
-typedef struct dpapimk_tmp
+typedef struct dpapimk_tmp_v1
 {
-  /* dedicated to hmac-sha1 */
   u32 ipad[5];
   u32 opad[5];
   u32 dgst[10];
@@ -881,13 +890,18 @@ typedef struct dpapimk_tmp
 
   u32 userKey[5];
 
-  /* dedicated to hmac-sha512 */
+} dpapimk_tmp_v1_t;
+
+typedef struct dpapimk_tmp_v2
+{
   u64 ipad64[8];
   u64 opad64[8];
   u64 dgst64[16];
   u64 out64[16];
 
-} dpapimk_tmp_t;
+  u32 userKey[5];
+
+} dpapimk_tmp_v2_t;
 
 typedef struct seven_zip_hook
 {
@@ -954,31 +968,31 @@ typedef enum display_len
   DISPLAY_LEN_MIN_0     = 32,
   DISPLAY_LEN_MAX_0     = 32,
   DISPLAY_LEN_MIN_10    = 32 + 1 + 0,
-  DISPLAY_LEN_MAX_10    = 32 + 1 + 51,
+  DISPLAY_LEN_MAX_10    = 32 + 1 + SALT_MAX,
   DISPLAY_LEN_MIN_10H   = 32 + 1 + 0,
-  DISPLAY_LEN_MAX_10H   = 32 + 1 + 102,
+  DISPLAY_LEN_MAX_10H   = 32 + 1 + (SALT_MAX * 2),
   DISPLAY_LEN_MIN_20    = 32 + 1 + 0,
-  DISPLAY_LEN_MAX_20    = 32 + 1 + 31,
+  DISPLAY_LEN_MAX_20    = 32 + 1 + SALT_MAX,
   DISPLAY_LEN_MIN_20H   = 32 + 1 + 0,
-  DISPLAY_LEN_MAX_20H   = 32 + 1 + 62,
+  DISPLAY_LEN_MAX_20H   = 32 + 1 + (SALT_MAX * 2),
   DISPLAY_LEN_MIN_50    = 32 + 1 + 0,
-  DISPLAY_LEN_MAX_50    = 32 + 1 + 51,
+  DISPLAY_LEN_MAX_50    = 32 + 1 + SALT_MAX,
   DISPLAY_LEN_MIN_50H   = 32 + 1 + 0,
-  DISPLAY_LEN_MAX_50H   = 32 + 1 + 102,
+  DISPLAY_LEN_MAX_50H   = 32 + 1 + (SALT_MAX * 2),
   DISPLAY_LEN_MIN_100   = 40,
   DISPLAY_LEN_MAX_100   = 40,
   DISPLAY_LEN_MIN_110   = 40 + 1 + 0,
-  DISPLAY_LEN_MAX_110   = 40 + 1 + 51,
+  DISPLAY_LEN_MAX_110   = 40 + 1 + SALT_MAX,
   DISPLAY_LEN_MIN_110H  = 40 + 1 + 0,
-  DISPLAY_LEN_MAX_110H  = 40 + 1 + 102,
+  DISPLAY_LEN_MAX_110H  = 40 + 1 + (SALT_MAX * 2),
   DISPLAY_LEN_MIN_120   = 40 + 1 + 0,
-  DISPLAY_LEN_MAX_120   = 40 + 1 + 31,
+  DISPLAY_LEN_MAX_120   = 40 + 1 + SALT_MAX,
   DISPLAY_LEN_MIN_120H  = 40 + 1 + 0,
-  DISPLAY_LEN_MAX_120H  = 40 + 1 + 62,
+  DISPLAY_LEN_MAX_120H  = 40 + 1 + (SALT_MAX * 2),
   DISPLAY_LEN_MIN_150   = 40 + 1 + 0,
-  DISPLAY_LEN_MAX_150   = 40 + 1 + 51,
+  DISPLAY_LEN_MAX_150   = 40 + 1 + SALT_MAX,
   DISPLAY_LEN_MIN_150H  = 40 + 1 + 0,
-  DISPLAY_LEN_MAX_150H  = 40 + 1 + 102,
+  DISPLAY_LEN_MAX_150H  = 40 + 1 + (SALT_MAX * 2),
   DISPLAY_LEN_MIN_200   = 16,
   DISPLAY_LEN_MAX_200   = 16,
   DISPLAY_LEN_MIN_300   = 40,
@@ -993,34 +1007,28 @@ typedef enum display_len
   DISPLAY_LEN_MAX_600   = 8 + 128,
   DISPLAY_LEN_MIN_900   = 32,
   DISPLAY_LEN_MAX_900   = 32,
-  DISPLAY_LEN_MIN_910   = 32 + 1 + 0,
-  DISPLAY_LEN_MAX_910   = 32 + 1 + 51,
-  DISPLAY_LEN_MIN_910H  = 32 + 1 + 0,
-  DISPLAY_LEN_MAX_910H  = 32 + 1 + 102,
   DISPLAY_LEN_MIN_1000  = 32,
   DISPLAY_LEN_MAX_1000  = 32,
   DISPLAY_LEN_MIN_1100  = 32 + 1 + 0,
-  DISPLAY_LEN_MAX_1100  = 32 + 1 + 19,
-  DISPLAY_LEN_MIN_1100H = 32 + 1 + 0,
-  DISPLAY_LEN_MAX_1100H = 32 + 1 + 38,
+  DISPLAY_LEN_MAX_1100  = 32 + 1 + SALT_MAX,
   DISPLAY_LEN_MIN_1300  = 56,
   DISPLAY_LEN_MAX_1300  = 56,
   DISPLAY_LEN_MIN_1400  = 64,
   DISPLAY_LEN_MAX_1400  = 64,
   DISPLAY_LEN_MIN_1410  = 64 + 1 + 0,
-  DISPLAY_LEN_MAX_1410  = 64 + 1 + 51,
+  DISPLAY_LEN_MAX_1410  = 64 + 1 + SALT_MAX,
   DISPLAY_LEN_MIN_1410H = 64 + 1 + 0,
-  DISPLAY_LEN_MAX_1410H = 64 + 1 + 102,
+  DISPLAY_LEN_MAX_1410H = 64 + 1 + (SALT_MAX * 2),
   DISPLAY_LEN_MIN_1420  = 64 + 1 + 0,
-  DISPLAY_LEN_MAX_1420  = 64 + 1 + 16,
+  DISPLAY_LEN_MAX_1420  = 64 + 1 + SALT_MAX,
   DISPLAY_LEN_MIN_1420H = 64 + 1 + 0,
-  DISPLAY_LEN_MAX_1420H = 64 + 1 + 32,
+  DISPLAY_LEN_MAX_1420H = 64 + 1 + (SALT_MAX * 2),
   DISPLAY_LEN_MIN_1421  = 70,
   DISPLAY_LEN_MAX_1421  = 70,
   DISPLAY_LEN_MIN_1450  = 64 + 1 + 0,
-  DISPLAY_LEN_MAX_1450  = 64 + 1 + 51,
+  DISPLAY_LEN_MAX_1450  = 64 + 1 + SALT_MAX,
   DISPLAY_LEN_MIN_1450H = 64 + 1 + 0,
-  DISPLAY_LEN_MAX_1450H = 64 + 1 + 102,
+  DISPLAY_LEN_MAX_1450H = 64 + 1 + (SALT_MAX * 2),
   DISPLAY_LEN_MIN_1500  = 13,
   DISPLAY_LEN_MAX_1500  = 13,
   DISPLAY_LEN_MIN_1600  = 29 + 0,
@@ -1028,53 +1036,45 @@ typedef enum display_len
   DISPLAY_LEN_MIN_1700  = 128,
   DISPLAY_LEN_MAX_1700  = 128,
   DISPLAY_LEN_MIN_1710  = 128 + 1 + 0,
-  DISPLAY_LEN_MAX_1710  = 128 + 1 + 51,
+  DISPLAY_LEN_MAX_1710  = 128 + 1 + SALT_MAX,
   DISPLAY_LEN_MIN_1710H = 128 + 1 + 0,
-  DISPLAY_LEN_MAX_1710H = 128 + 1 + 102,
+  DISPLAY_LEN_MAX_1710H = 128 + 1 + (SALT_MAX * 2),
   DISPLAY_LEN_MIN_1720  = 128 + 1 + 0,
-  DISPLAY_LEN_MAX_1720  = 128 + 1 + 16,
+  DISPLAY_LEN_MAX_1720  = 128 + 1 + SALT_MAX,
   DISPLAY_LEN_MIN_1720H = 128 + 1 + 0,
-  DISPLAY_LEN_MAX_1720H = 128 + 1 + 32,
+  DISPLAY_LEN_MAX_1720H = 128 + 1 + (SALT_MAX * 2),
   DISPLAY_LEN_MIN_1730  = 128 + 1 + 0,
-  DISPLAY_LEN_MAX_1730  = 128 + 1 + 16,
-  DISPLAY_LEN_MIN_1731  = 128 + 6 + 0,
-  DISPLAY_LEN_MAX_1731  = 128 + 6 + 16,
+  DISPLAY_LEN_MAX_1730  = 128 + 1 + SALT_MAX,
   DISPLAY_LEN_MIN_1740  = 128 + 1 + 0,
-  DISPLAY_LEN_MAX_1740  = 128 + 1 + 16,
+  DISPLAY_LEN_MAX_1740  = 128 + 1 + (SALT_MAX * 2),
   DISPLAY_LEN_MIN_1750  = 128 + 1 + 0,
-  DISPLAY_LEN_MAX_1750  = 128 + 1 + 51,
+  DISPLAY_LEN_MAX_1750  = 128 + 1 + SALT_MAX,
   DISPLAY_LEN_MIN_1750H = 128 + 1 + 0,
-  DISPLAY_LEN_MAX_1750H = 128 + 1 + 102,
+  DISPLAY_LEN_MAX_1750H = 128 + 1 + (SALT_MAX * 2),
   DISPLAY_LEN_MIN_1800  = 90 + 0,
   DISPLAY_LEN_MAX_1800  = 90 + 16,
-  DISPLAY_LEN_MIN_2100  = 6 + 1 + 1 + 32 + 1 + 0,
-  DISPLAY_LEN_MAX_2100  = 6 + 5 + 1 + 32 + 1 + 19,
-  DISPLAY_LEN_MIN_2100H = 6 + 1 + 1 + 32 + 1 + 0,
-  DISPLAY_LEN_MAX_2100H = 6 + 5 + 1 + 32 + 1 + 38,
+  DISPLAY_LEN_MIN_2100  = 6 + 1 + 1 +        0 + 1 + 32,
+  DISPLAY_LEN_MAX_2100  = 6 + 5 + 1 + SALT_MAX + 1 + 32,
   DISPLAY_LEN_MIN_2400  = 16,
   DISPLAY_LEN_MAX_2400  = 16,
-  DISPLAY_LEN_MIN_2410  = 16 + 1 + 0,
-  DISPLAY_LEN_MAX_2410  = 16 + 1 + 16,
-  DISPLAY_LEN_MIN_2410H = 16 + 1 + 0,
-  DISPLAY_LEN_MAX_2410H = 16 + 1 + 32,
-  DISPLAY_LEN_MIN_2500  = 64 + 1 + 0,
-  DISPLAY_LEN_MAX_2500  = 64 + 1 + 15,
+  DISPLAY_LEN_MIN_2410  = 16 + 1 + 1,
+  DISPLAY_LEN_MAX_2410  = 16 + 1 + 4,
   DISPLAY_LEN_MIN_2600  = 32,
   DISPLAY_LEN_MAX_2600  = 32,
   DISPLAY_LEN_MIN_3000  = 16,
   DISPLAY_LEN_MAX_3000  = 16,
   DISPLAY_LEN_MIN_3100  = 16 + 1 + 0,
   DISPLAY_LEN_MAX_3100  = 16 + 1 + 30,
-  DISPLAY_LEN_MIN_3100H = 16 + 1 + 0,
-  DISPLAY_LEN_MAX_3100H = 16 + 1 + 60,
   DISPLAY_LEN_MIN_3200  = 60,
   DISPLAY_LEN_MAX_3200  = 60,
   DISPLAY_LEN_MIN_4300  = 32,
   DISPLAY_LEN_MAX_4300  = 32,
   DISPLAY_LEN_MIN_4500  = 40,
   DISPLAY_LEN_MAX_4500  = 40,
-  DISPLAY_LEN_MIN_4520  = 40 + 1 + 1,
-  DISPLAY_LEN_MAX_4520  = 40 + 1 + 64,
+  DISPLAY_LEN_MIN_4520  = 40 + 1 + 0,
+  DISPLAY_LEN_MAX_4520  = 40 + 1 + SALT_MAX,
+  DISPLAY_LEN_MIN_4520H = 40 + 1 + 0,
+  DISPLAY_LEN_MAX_4520H = 40 + 1 + (SALT_MAX * 2),
   DISPLAY_LEN_MIN_4800  = 32 + 1 + 32 + 1 + 2,
   DISPLAY_LEN_MAX_4800  = 32 + 1 + 32 + 1 + 2,
   DISPLAY_LEN_MIN_5000  = 16,
@@ -1279,37 +1279,29 @@ typedef enum display_len
   DISPLAY_LEN_MAX_15600 = 11 + 1 + 6 + 1 + 64 + 1 + 64 + 1 + 64,
   DISPLAY_LEN_MIN_15700 = 11 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 64 + 1 + 64 + 1 + 64,
   DISPLAY_LEN_MAX_15700 = 11 + 1 + 6 + 1 + 1 + 1 + 1 + 1 + 64 + 1 + 64 + 1 + 64,
+  DISPLAY_LEN_MIN_15900 =  1 + 7 + 1 + 1 + 1 + 1 + 1 +  10 + 1 + 4 + 1 + 4 + 1 +  1 + 1 + 32 + 1 + 3 + 1 + 128,
+  DISPLAY_LEN_MAX_15900 =  1 + 7 + 1 + 1 + 1 + 1 + 1 + 100 + 1 + 6 + 1 + 6 + 1 + 10 + 1 + 32 + 1 + 4 + 1 + 512,
   DISPLAY_LEN_MIN_99999 = 1,
   DISPLAY_LEN_MAX_99999 = 55,
 
-  DISPLAY_LEN_MIN_11    = 32 + 1 + 16,
-  DISPLAY_LEN_MAX_11    = 32 + 1 + 32,
-  DISPLAY_LEN_MIN_11H   = 32 + 1 + 32,
-  DISPLAY_LEN_MAX_11H   = 32 + 1 + 64,
-  DISPLAY_LEN_MIN_12    = 32 + 1 + 1,
+  DISPLAY_LEN_MIN_11    = 32 + 1 + 0,
+  DISPLAY_LEN_MAX_11    = 32 + 1 + SALT_MAX,
+  DISPLAY_LEN_MIN_12    = 32 + 1 + 0,
   DISPLAY_LEN_MAX_12    = 32 + 1 + 32,
-  DISPLAY_LEN_MIN_12H   = 32 + 1 + 2,
-  DISPLAY_LEN_MAX_12H   = 32 + 1 + 64,
-  DISPLAY_LEN_MIN_21    = 32 + 1 + 1,
-  DISPLAY_LEN_MAX_21    = 32 + 1 + 15,
-  DISPLAY_LEN_MIN_21H   = 32 + 1 + 2,
-  DISPLAY_LEN_MAX_21H   = 32 + 1 + 30,
+  DISPLAY_LEN_MIN_21    = 32 + 1 + 2,
+  DISPLAY_LEN_MAX_21    = 32 + 1 + 2,
   DISPLAY_LEN_MIN_22    = 30 + 1 + 1,
-  DISPLAY_LEN_MAX_22    = 30 + 1 + 28,
-  DISPLAY_LEN_MIN_22H   = 30 + 1 + 2,
-  DISPLAY_LEN_MAX_22H   = 30 + 1 + 56,
+  DISPLAY_LEN_MAX_22    = 30 + 1 + 32,
   DISPLAY_LEN_MIN_23    = 32 + 1 + 0,
-  DISPLAY_LEN_MAX_23    = 32 + 1 + 23,
+  DISPLAY_LEN_MAX_23    = 32 + 1 + SALT_MAX,
   DISPLAY_LEN_MIN_101   =  5 + 28,
   DISPLAY_LEN_MAX_101   =  5 + 28,
-  DISPLAY_LEN_MIN_111   =  6 + 28 + 0,
-  DISPLAY_LEN_MAX_111   =  6 + 28 + 40,
+  DISPLAY_LEN_MIN_111   =  6 + 28 + 1,
+  DISPLAY_LEN_MAX_111   =  6 + 28 + SALT_MAX,
   DISPLAY_LEN_MIN_112   = 40 + 1 + 20,
   DISPLAY_LEN_MAX_112   = 40 + 1 + 20,
   DISPLAY_LEN_MIN_121   = 40 + 1 + 1,
-  DISPLAY_LEN_MAX_121   = 40 + 1 + 32,
-  DISPLAY_LEN_MIN_121H  = 40 + 1 + 2,
-  DISPLAY_LEN_MAX_121H  = 40 + 1 + 64,
+  DISPLAY_LEN_MAX_121   = 40 + 1 + SALT_MAX,
   DISPLAY_LEN_MIN_122   =  8 + 40,
   DISPLAY_LEN_MAX_122   =  8 + 40,
   DISPLAY_LEN_MIN_124   = 4 + 1 +  0 + 1 + 40,
@@ -1332,20 +1324,16 @@ typedef enum display_len
   DISPLAY_LEN_MAX_1711  =  9 + 86 + 68,
   DISPLAY_LEN_MIN_1722  =  8 + 128,
   DISPLAY_LEN_MAX_1722  =  8 + 128,
+  DISPLAY_LEN_MIN_1731  = 128 + 6 + 0,
+  DISPLAY_LEN_MAX_1731  = 128 + 6 + 16,
   DISPLAY_LEN_MIN_2611  = 32 + 1 + 0,
-  DISPLAY_LEN_MAX_2611  = 32 + 1 + 23,
-  DISPLAY_LEN_MIN_2611H = 32 + 1 + 0,
-  DISPLAY_LEN_MIN_2612  = 6 +  0 + 1 + 32,
-  DISPLAY_LEN_MAX_2611H = 32 + 1 + 46,
-  DISPLAY_LEN_MAX_2612  = 6 + 46 + 1 + 32,
+  DISPLAY_LEN_MAX_2611  = 32 + 1 + SALT_MAX,
+  DISPLAY_LEN_MIN_2612  = 6 +        0 + 1 + 32,
+  DISPLAY_LEN_MAX_2612  = 6 + SALT_MAX + 1 + 32,
   DISPLAY_LEN_MIN_2711  = 32 + 1 + 23,
   DISPLAY_LEN_MAX_2711  = 32 + 1 + 31,
-  DISPLAY_LEN_MIN_2711H = 32 + 1 + 46,
-  DISPLAY_LEN_MAX_2711H = 32 + 1 + 62,
   DISPLAY_LEN_MIN_2811  = 32 + 1 + 0,
-  DISPLAY_LEN_MAX_2811  = 32 + 1 + 31,
-  DISPLAY_LEN_MIN_2811H = 32 + 1 + 0,
-  DISPLAY_LEN_MAX_2811H = 32 + 1 + 62,
+  DISPLAY_LEN_MAX_2811  = 32 + 1 + SALT_MAX,
   DISPLAY_LEN_MIN_3711  = 3 +  0 + 1 + 32,
   DISPLAY_LEN_MAX_3711  = 3 + 31 + 1 + 32,
   DISPLAY_LEN_MIN_4521  = 40 + 1 + 32,
@@ -1471,6 +1459,7 @@ typedef enum kern_type
   KERN_TYPE_MD5PIX                  = 2400,
   KERN_TYPE_MD5ASA                  = 2410,
   KERN_TYPE_WPA                     = 2500,
+  KERN_TYPE_WPAPMK                  = 2501,
   KERN_TYPE_MD55                    = 2600,
   KERN_TYPE_MD55_PWSLT1             = 2610,
   KERN_TYPE_MD55_PWSLT2             = 2710,
@@ -1610,11 +1599,12 @@ typedef enum kern_type
   KERN_TYPE_SKIP32                  = 14900,
   KERN_TYPE_FILEZILLA_SERVER        = 15000,
   KERN_TYPE_NETBSD_SHA1CRYPT        = 15100,
-  KERN_TYPE_DPAPIMK                 = 15300,
+  KERN_TYPE_DPAPIMK_V1              = 15300,
   KERN_TYPE_CHACHA20                = 15400,
   KERN_TYPE_JKS_SHA1                = 15500,
   KERN_TYPE_ETHEREUM_PBKDF2         = 15600,
   KERN_TYPE_ETHEREUM_SCRYPT         = 15700,
+  KERN_TYPE_DPAPIMK_V2              = 15900,
   KERN_TYPE_PLAINTEXT               = 99999,
 
 } kern_type_t;
@@ -1627,7 +1617,8 @@ typedef enum rounds_count
 {
    ROUNDS_PHPASS             = (1 << 11), // $P$B
    ROUNDS_DCC2               = 10240,
-   ROUNDS_WPA2               = 4096,
+   ROUNDS_WPA                = 4096,
+   ROUNDS_WPAPMK             = 1,
    ROUNDS_BCRYPT             = (1 << 5),
    ROUNDS_PSAFE3             = 2048,
    ROUNDS_ANDROIDPIN         = 1024,
@@ -1644,7 +1635,7 @@ typedef enum rounds_count
    ROUNDS_SHA256CRYPT        = 5000,
    ROUNDS_SHA512CRYPT        = 5000,
    ROUNDS_GRUB               = 10000,
-   ROUNDS_SHA512OSX          = 35000,
+   ROUNDS_SHA512MACOS        = 35000,
    ROUNDS_AGILEKEY           = 1000,
    ROUNDS_LASTPASS           = 500,
    ROUNDS_DRUPAL7            = (1 << 14), // $S$C
@@ -1685,7 +1676,8 @@ typedef enum rounds_count
    ROUNDS_ITUNES102_BACKUP   = 10000,
    ROUNDS_ATLASSIAN          = 10000,
    ROUNDS_NETBSD_SHA1CRYPT   = 20000,
-   ROUNDS_DPAPIMK            = 24000 - 1, // from 4000 to 24000 (possibly more)
+   ROUNDS_DPAPIMK_V1         = 24000 - 1, // from 4000 to 24000 (possibly more)
+   ROUNDS_DPAPIMK_V2         = 8000  - 1, // from 4000 to 24000 (possibly more)
    ROUNDS_ETHEREUM_PBKDF2    = 262144 - 1,
    ROUNDS_STDOUT             = 0
 
@@ -1728,8 +1720,8 @@ int oracles_parse_hash            (u8 *input_buf, u32 input_len, hash_t *hash_bu
 int oraclet_parse_hash            (u8 *input_buf, u32 input_len, hash_t *hash_buf, MAYBE_UNUSED const hashconfig_t *hashconfig);
 int osc_parse_hash                (u8 *input_buf, u32 input_len, hash_t *hash_buf, MAYBE_UNUSED const hashconfig_t *hashconfig);
 int arubaos_parse_hash            (u8 *input_buf, u32 input_len, hash_t *hash_buf, MAYBE_UNUSED const hashconfig_t *hashconfig);
-int osx1_parse_hash               (u8 *input_buf, u32 input_len, hash_t *hash_buf, MAYBE_UNUSED const hashconfig_t *hashconfig);
-int osx512_parse_hash             (u8 *input_buf, u32 input_len, hash_t *hash_buf, MAYBE_UNUSED const hashconfig_t *hashconfig);
+int macos1_parse_hash             (u8 *input_buf, u32 input_len, hash_t *hash_buf, MAYBE_UNUSED const hashconfig_t *hashconfig);
+int macos512_parse_hash           (u8 *input_buf, u32 input_len, hash_t *hash_buf, MAYBE_UNUSED const hashconfig_t *hashconfig);
 int phpass_parse_hash             (u8 *input_buf, u32 input_len, hash_t *hash_buf, MAYBE_UNUSED const hashconfig_t *hashconfig);
 int sha1_parse_hash               (u8 *input_buf, u32 input_len, hash_t *hash_buf, MAYBE_UNUSED const hashconfig_t *hashconfig);
 int sha1b64_parse_hash            (u8 *input_buf, u32 input_len, hash_t *hash_buf, MAYBE_UNUSED const hashconfig_t *hashconfig);
@@ -1765,7 +1757,7 @@ int lastpass_parse_hash           (u8 *input_buf, u32 input_len, hash_t *hash_bu
 int gost_parse_hash               (u8 *input_buf, u32 input_len, hash_t *hash_buf, MAYBE_UNUSED const hashconfig_t *hashconfig);
 int sha256crypt_parse_hash        (u8 *input_buf, u32 input_len, hash_t *hash_buf, MAYBE_UNUSED const hashconfig_t *hashconfig);
 int mssql2012_parse_hash          (u8 *input_buf, u32 input_len, hash_t *hash_buf, MAYBE_UNUSED const hashconfig_t *hashconfig);
-int sha512osx_parse_hash          (u8 *input_buf, u32 input_len, hash_t *hash_buf, MAYBE_UNUSED const hashconfig_t *hashconfig);
+int sha512macos_parse_hash        (u8 *input_buf, u32 input_len, hash_t *hash_buf, MAYBE_UNUSED const hashconfig_t *hashconfig);
 int episerver4_parse_hash         (u8 *input_buf, u32 input_len, hash_t *hash_buf, MAYBE_UNUSED const hashconfig_t *hashconfig);
 int sha512grub_parse_hash         (u8 *input_buf, u32 input_len, hash_t *hash_buf, MAYBE_UNUSED const hashconfig_t *hashconfig);
 int sha512b64s_parse_hash         (u8 *input_buf, u32 input_len, hash_t *hash_buf, MAYBE_UNUSED const hashconfig_t *hashconfig);
@@ -1875,7 +1867,7 @@ int ethereum_scrypt_parse_hash    (u8 *input_buf, u32 input_len, hash_t *hash_bu
  * hook functions
  */
 
-void seven_zip_hook_func (hc_device_param_t *device_param, hashes_t *hashes, const u32 salt_pos, const u32 pws_cnt);
+void seven_zip_hook_func (hc_device_param_t *device_param, void *hook_salts_buf, const u32 salt_pos, const u32 pws_cnt);
 
 /**
  * output functions
@@ -1890,12 +1882,13 @@ void to_hccapx_t (hashcat_ctx_t *hashcat_ctx, hccapx_t *hccapx, const u32 salt_p
 
 int ascii_digest (hashcat_ctx_t *hashcat_ctx, char *out_buf, const size_t out_len, const u32 salt_pos, const u32 digest_pos);
 
-int         hashconfig_init               (hashcat_ctx_t *hashcat_ctx);
-void        hashconfig_destroy            (hashcat_ctx_t *hashcat_ctx);
-u32         hashconfig_get_kernel_threads (hashcat_ctx_t *hashcat_ctx, const hc_device_param_t *device_param);
-u32         hashconfig_get_kernel_loops   (hashcat_ctx_t *hashcat_ctx);
-int         hashconfig_general_defaults   (hashcat_ctx_t *hashcat_ctx);
-void        hashconfig_benchmark_defaults (hashcat_ctx_t *hashcat_ctx, salt_t *salt, void *esalt, void *hook_salt);
-const char *hashconfig_benchmark_mask     (hashcat_ctx_t *hashcat_ctx);
+int         hashconfig_init                   (hashcat_ctx_t *hashcat_ctx);
+void        hashconfig_destroy                (hashcat_ctx_t *hashcat_ctx);
+u32         hashconfig_forced_kernel_threads  (hashcat_ctx_t *hashcat_ctx);
+u32         hashconfig_get_kernel_threads     (hashcat_ctx_t *hashcat_ctx, const hc_device_param_t *device_param);
+u32         hashconfig_get_kernel_loops       (hashcat_ctx_t *hashcat_ctx);
+int         hashconfig_general_defaults       (hashcat_ctx_t *hashcat_ctx);
+void        hashconfig_benchmark_defaults     (hashcat_ctx_t *hashcat_ctx, salt_t *salt, void *esalt, void *hook_salt);
+const char *hashconfig_benchmark_mask         (hashcat_ctx_t *hashcat_ctx);
 
 #endif // _INTERFACE_H

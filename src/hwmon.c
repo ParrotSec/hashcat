@@ -22,9 +22,9 @@ static bool sysfs_init (hashcat_ctx_t *hashcat_ctx)
 
   memset (sysfs, 0, sizeof (SYSFS_PTR));
 
-  char *path = hcmalloc (HCBUFSIZ_TINY);
+  char *path;
 
-  snprintf (path, HCBUFSIZ_TINY - 1, "%s", SYS_BUS_PCI_DEVICES);
+  hc_asprintf (&path, "%s", SYS_BUS_PCI_DEVICES);
 
   const bool r = hc_path_read (path);
 
@@ -104,11 +104,11 @@ static int hm_SYSFS_get_fan_speed_current (hashcat_ctx_t *hashcat_ctx, const int
 
   if (syspath == NULL) return -1;
 
-  char *path_cur = hcmalloc (HCBUFSIZ_TINY);
-  char *path_max = hcmalloc (HCBUFSIZ_TINY);
+  char *path_cur;
+  char *path_max;
 
-  snprintf (path_cur, HCBUFSIZ_TINY - 1, "%s/pwm1",     syspath);
-  snprintf (path_max, HCBUFSIZ_TINY - 1, "%s/pwm1_max", syspath);
+  hc_asprintf (&path_cur, "%s/pwm1",     syspath);
+  hc_asprintf (&path_max, "%s/pwm1_max", syspath);
 
   hcfree (syspath);
 
@@ -196,9 +196,9 @@ static int hm_SYSFS_set_fan_control (hashcat_ctx_t *hashcat_ctx, const int devic
 
   if (syspath == NULL) return -1;
 
-  char *path = hcmalloc (HCBUFSIZ_TINY);
+  char *path;
 
-  snprintf (path, HCBUFSIZ_TINY - 1, "%s/pwm1_enable", syspath);
+  hc_asprintf (&path, "%s/pwm1_enable", syspath);
 
   hcfree (syspath);
 
@@ -228,11 +228,11 @@ static int hm_SYSFS_set_fan_speed_target (hashcat_ctx_t *hashcat_ctx, const int 
 
   if (syspath == NULL) return -1;
 
-  char *path     = hcmalloc (HCBUFSIZ_TINY);
-  char *path_max = hcmalloc (HCBUFSIZ_TINY);
+  char *path;
+  char *path_max;
 
-  snprintf (path,     HCBUFSIZ_TINY - 1, "%s/pwm1",     syspath);
-  snprintf (path_max, HCBUFSIZ_TINY - 1, "%s/pwm1_max", syspath);
+  hc_asprintf (&path,     "%s/pwm1",     syspath);
+  hc_asprintf (&path_max, "%s/pwm1_max", syspath);
 
   hcfree (syspath);
 
@@ -304,9 +304,9 @@ static int hm_SYSFS_get_temperature_current (hashcat_ctx_t *hashcat_ctx, const i
 
   if (syspath == NULL) return -1;
 
-  char *path = hcmalloc (HCBUFSIZ_TINY);
+  char *path;
 
-  snprintf (path, HCBUFSIZ_TINY - 1, "%s/temp1_input", syspath);
+  hc_asprintf (&path, "%s/temp1_input", syspath);
 
   hcfree (syspath);
 
@@ -349,9 +349,9 @@ static int hm_SYSFS_get_pp_dpm_sclk (hashcat_ctx_t *hashcat_ctx, const int devic
 
   if (syspath == NULL) return -1;
 
-  char *path = hcmalloc (HCBUFSIZ_TINY);
+  char *path;
 
-  snprintf (path, HCBUFSIZ_TINY - 1, "%s/pp_dpm_sclk", syspath);
+  hc_asprintf (&path, "%s/pp_dpm_sclk", syspath);
 
   hcfree (syspath);
 
@@ -404,9 +404,9 @@ static int hm_SYSFS_get_pp_dpm_mclk (hashcat_ctx_t *hashcat_ctx, const int devic
 
   if (syspath == NULL) return -1;
 
-  char *path = hcmalloc (HCBUFSIZ_TINY);
+  char *path;
 
-  snprintf (path, HCBUFSIZ_TINY - 1, "%s/pp_dpm_mclk", syspath);
+  hc_asprintf (&path, "%s/pp_dpm_mclk", syspath);
 
   hcfree (syspath);
 
@@ -459,9 +459,9 @@ static int hm_SYSFS_get_pp_dpm_pcie (hashcat_ctx_t *hashcat_ctx, const int devic
 
   if (syspath == NULL) return -1;
 
-  char *path = hcmalloc (HCBUFSIZ_TINY);
+  char *path;
 
-  snprintf (path, HCBUFSIZ_TINY - 1, "%s/pp_dpm_pcie", syspath);
+  hc_asprintf (&path, "%s/pp_dpm_pcie", syspath);
 
   hcfree (syspath);
 
@@ -515,9 +515,9 @@ static int hm_SYSFS_set_power_dpm_force_performance_level (hashcat_ctx_t *hashca
 
   if (syspath == NULL) return -1;
 
-  char *path = hcmalloc (HCBUFSIZ_TINY);
+  char *path;
 
-  snprintf (path, HCBUFSIZ_TINY - 1, "%s/power_dpm_force_performance_level", syspath);
+  hc_asprintf (&path, "%s/power_dpm_force_performance_level", syspath);
 
   hcfree (syspath);
 
@@ -616,7 +616,7 @@ static int nvml_init (hashcat_ctx_t *hashcat_ctx)
 
     nvml_winpath = (char *) hcmalloc (100);
 
-    fread (nvml_winpath, 100, 1, nvml_lib);
+    hc_fread (nvml_winpath, 100, 1, nvml_lib);
 
     fclose (nvml_lib);
 
@@ -2563,7 +2563,8 @@ int hm_get_temperature_with_device_id (hashcat_ctx_t *hashcat_ctx, const u32 dev
 
         return Temperature.iTemperature / 1000;
       }
-      else if (hwmon_ctx->hm_device[device_id].od_version == 6)
+
+      if (hwmon_ctx->hm_device[device_id].od_version == 6)
       {
         int Temperature = 0;
 
@@ -2649,7 +2650,8 @@ int hm_get_fanpolicy_with_device_id (hashcat_ctx_t *hashcat_ctx, const u32 devic
 
         return (lpFanSpeedValue.iFanSpeed & ADL_DL_FANCTRL_FLAG_USER_DEFINED_SPEED) ? 0 : 1;
       }
-      else // od_version == 6
+
+      if (hwmon_ctx->hm_device[device_id].od_version == 6)
       {
         return 1;
       }
@@ -2706,7 +2708,8 @@ int hm_get_fanspeed_with_device_id (hashcat_ctx_t *hashcat_ctx, const u32 device
 
         return lpFanSpeedValue.iFanSpeed;
       }
-      else // od_version == 6
+
+      if (hwmon_ctx->hm_device[device_id].od_version == 6)
       {
         ADLOD6FanSpeedInfo faninfo;
 
@@ -3108,7 +3111,8 @@ int hm_set_fanspeed_with_device_id_adl (hashcat_ctx_t *hashcat_ctx, const u32 de
 
         return 0;
       }
-      else // od_version == 6
+
+      if (hwmon_ctx->hm_device[device_id].od_version == 6)
       {
         ADLOD6FanSpeedValue fan_speed_value;
 
@@ -3140,7 +3144,8 @@ int hm_set_fanspeed_with_device_id_adl (hashcat_ctx_t *hashcat_ctx, const u32 de
 
         return 0;
       }
-      else // od_version == 6
+
+      if (hwmon_ctx->hm_device[device_id].od_version == 6)
       {
         if (hm_ADL_Overdrive6_FanSpeed_Reset (hashcat_ctx, hwmon_ctx->hm_device[device_id].adl) == -1)
         {
@@ -3189,7 +3194,8 @@ int hm_set_fanspeed_with_device_id_nvapi (hashcat_ctx_t *hashcat_ctx, const u32 
 
       return 0;
     }
-    else
+
+    if (fanpolicy != 1)
     {
       NV_GPU_COOLER_LEVELS CoolerLevels;
 
@@ -3328,6 +3334,7 @@ int hwmon_ctx_init (hashcat_ctx_t *hashcat_ctx)
 
   hwmon_ctx->enabled = false;
 
+  if (user_options->example_hashes    == true) return 0;
   if (user_options->keyspace          == true) return 0;
   if (user_options->left              == true) return 0;
   if (user_options->opencl_info       == true) return 0;

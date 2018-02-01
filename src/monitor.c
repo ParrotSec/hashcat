@@ -30,9 +30,9 @@ int get_runtime_left (const hashcat_ctx_t *hashcat_ctx)
     msec_paused += msec_paused_tmp;
   }
 
-  time_t runtime_cur;
+  hc_time_t runtime_cur;
 
-  time (&runtime_cur);
+  hc_time (&runtime_cur);
 
   const int runtime_left = (int) (status_ctx->runtime_start
                                 + user_options->runtime
@@ -58,12 +58,12 @@ static int monitor (hashcat_ctx_t *hashcat_ctx)
   bool hwmon_check        = false;
   bool performance_check  = false;
 
-  const int   sleep_time      = 1;
-  const int   temp_threshold  = 1;      // degrees celcius
-  const int   fan_speed_min   = 33;     // in percentage
-  const int   fan_speed_max   = 100;
-  const float exec_low        = 50.0f;  // in ms
-  const float util_low        = 90.0f;  // in percent
+  const int    sleep_time      = 1;
+  const int    temp_threshold  = 1;      // degrees celcius
+  const int    fan_speed_min   = 33;     // in percentage
+  const int    fan_speed_max   = 100;
+  const double exec_low        = 50.0;  // in ms
+  const double util_low        = 90.0;  // in percent
 
   if (user_options->runtime)
   {
@@ -116,9 +116,9 @@ static int monitor (hashcat_ctx_t *hashcat_ctx)
 
   // timer
 
-  time_t last_temp_check_time;
+  hc_time_t last_temp_check_time;
 
-  time (&last_temp_check_time);
+  hc_time (&last_temp_check_time);
 
   u32 slowdown_warnings    = 0;
   u32 performance_warnings = 0;
@@ -129,7 +129,7 @@ static int monitor (hashcat_ctx_t *hashcat_ctx)
 
   while (status_ctx->shutdown_inner == false)
   {
-    hc_sleep (sleep_time);
+    sleep (sleep_time);
 
     if (status_ctx->devices_status == STATUS_INIT) continue;
 
@@ -168,9 +168,9 @@ static int monitor (hashcat_ctx_t *hashcat_ctx)
     {
       hc_thread_mutex_lock (status_ctx->mux_hwmon);
 
-      time_t temp_check_time;
+      hc_time_t temp_check_time;
 
-      time (&temp_check_time);
+      hc_time (&temp_check_time);
 
       u32 Ta = temp_check_time - last_temp_check_time; // set Ta = sleep_time; is not good enough (see --remove etc)
 

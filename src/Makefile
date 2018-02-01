@@ -48,8 +48,9 @@ PREFIX                  ?= /usr/local
 
 INSTALL_FOLDER          ?= $(PREFIX)/bin
 LIBRARY_FOLDER          ?= $(PREFIX)/lib
-SHARED_FOLDER           ?= $(PREFIX)/share/hashcat
-DOCUMENT_FOLDER         ?= $(PREFIX)/share/doc/hashcat
+SHARED_ROOT_FOLDER      ?= $(PREFIX)/share
+SHARED_FOLDER           ?= $(SHARED_ROOT_FOLDER)/hashcat
+DOCUMENT_FOLDER         ?= $(SHARED_ROOT_FOLDER)/doc/hashcat
 
 ##
 ## Filenames for library and frontend
@@ -89,7 +90,7 @@ SED_IN_PLACE            := -i
 
 ifeq ($(UNAME),Darwin)
 CC                      := clang
-# the sed -i option of OSX requires a parameter for the backup file (we just use "")
+# the sed -i option of macOS requires a parameter for the backup file (we just use "")
 SED_IN_PLACE            := -i ""
 endif
 
@@ -122,8 +123,12 @@ WIN_ICONV_64             := /opt/win-iconv-64
 
 COMPTIME                := $(shell date +%s)
 
-VERSION_EXPORT          := tag: v3.6.0, refs/pull/1273/head
-VERSION_TAG             := $(shell test -d .git && git describe --tags --dirty=+ || echo "$(VERSION_EXPORT)"|cut -d, -f2|$(SED) -r 's|.* (\w+/)?([^ ]+)|\2|')
+# the following variable value will be automatically replaced by the "git archive" command
+# (which is automatically run for every github release)
+# the value will be something like this: "tag: vX.Y.Z, refs/pull/K/head" or "HEAD -> master, tag: vX.Y.Z"
+
+VERSION_EXPORT          := tag: v4.0.1
+VERSION_TAG             := $(shell test -d .git && git describe --tags --dirty=+ || echo "$(VERSION_EXPORT)" | $(SED) 's/.*: v\([\.0-9]*\).*/v\1/')
 
 ##
 ## General compiler and linker options
@@ -144,7 +149,6 @@ CFLAGS                  += -Wpointer-arith
 CFLAGS                  += -Wstrict-prototypes
 CFLAGS                  += -Waggregate-return
 CFLAGS                  += -Wswitch-enum
-CFLAGS                  += -Wunreachable-code
 CFLAGS                  += -Winit-self
 CFLAGS                  += -Werror-implicit-function-declaration
 CFLAGS                  += -Wformat
@@ -153,17 +157,20 @@ CFLAGS                  += -Wwrite-strings
 
 # the following compiler options produce warnings that should be fixed at some time
 
-#CFLAGS                  += -Wsizeof-pointer-memaccess
-#CFLAGS                  += -Wcast-align
-#CFLAGS                  += -Wcast-qual
-#CFLAGS                  += -Wsign-conversion
-#CFLAGS                  += -pedantic
+CFLAGS                  += -Wno-cast-align
+CFLAGS                  += -Wno-cast-qual
+CFLAGS                  += -Wno-conversion
+CFLAGS                  += -Wno-padded
+CFLAGS                  += -Wno-pedantic
+CFLAGS                  += -Wno-sizeof-pointer-memaccess
+#CFLAGS                  += -Wno-reserved-id-macro      //clang specific
+#CFLAGS                  += -Wno-used-but-marked-unused //    ^^
 endif
 
-# default linux and freebsd thread stack size is 2MB
-# default windows thread stack size is 1MB
-# default OSX thread stack size is 512kB
-# unfortionally, this option isn't supported by older GCC and clang versions
+# default Linux and freebsd thread stack size is 2MB
+# default Windows thread stack size is 1MB
+# default macOS thread stack size is 512kB
+# unfortunately, this option isn't supported by older GCC and clang versions
 
 #CFLAGS                  += -Wstack-usage=524288
 
@@ -174,10 +181,10 @@ CFLAGS                  += -O2
 LFLAGS                  += -s
 else
 ifeq ($(DEBUG),1)
-CFLAGS                  += -DDEBUG -g -ggdb
+CFLAGS                  += -DDEBUG -Og -ggdb
 else
 ifeq ($(DEBUG),2)
-CFLAGS                  += -DDEBUG -g -ggdb
+CFLAGS                  += -DDEBUG -Og -ggdb
 CFLAGS                  += -fsanitize=address -fno-omit-frame-pointer
 endif
 endif
@@ -274,7 +281,7 @@ LFLAGS_CROSS_WIN64      += -lpsapi
 ## Objects
 ##
 
-OBJS_ALL                := affinity autotune benchmark bitmap bitops combinator common convert cpt cpu_aes cpu_crc32 cpu_des cpu_md4 cpu_md5 cpu_sha1 cpu_sha256 debugfile dictstat dispatch dynloader event ext_ADL ext_nvapi ext_nvml ext_OpenCL ext_sysfs ext_xnvctrl ext_lzma lzma_sdk/Alloc lzma_sdk/Lzma2Dec lzma_sdk/LzmaDec filehandling folder hashcat hashes hlfmt hwmon induct interface locking logfile loopback memory monitor mpsp opencl outfile_check outfile pidfile potfile restore rp rp_cpu rp_kernel_on_cpu shared status stdout straight terminal thread timer tuningdb usage user_options weak_hash wordlist
+OBJS_ALL                := affinity autotune benchmark bitmap bitops combinator common convert cpt cpu_aes cpu_crc32 cpu_des cpu_md4 cpu_md5 cpu_sha1 cpu_sha256 debugfile dictstat dispatch dynloader event ext_ADL ext_nvapi ext_nvml ext_OpenCL ext_sysfs ext_xnvctrl ext_lzma lzma_sdk/Alloc lzma_sdk/Lzma2Dec lzma_sdk/LzmaDec filehandling folder hashcat hashes hlfmt hwmon induct interface locking logfile loopback memory monitor mpsp opencl outfile_check outfile pidfile potfile restore rp rp_cpu rp_kernel_on_cpu rp_kernel_on_cpu_optimized selftest shared status stdout straight terminal thread timer tuningdb usage user_options wordlist
 
 NATIVE_STATIC_OBJS      := $(foreach OBJ,$(OBJS_ALL),obj/$(OBJ).NATIVE.STATIC.o)
 NATIVE_SHARED_OBJS      := $(foreach OBJ,$(OBJS_ALL),obj/$(OBJ).NATIVE.SHARED.o)
@@ -324,7 +331,13 @@ else
 install: install_docs install_shared                 install_hashcat
 endif
 
-install_docs:
+# we need this extra target to make sure that for parallel builds (i.e. 2+ Makefile targets could possible run at the same time)
+# the root folder of the shared directory is created first (and is a dependency for the targets that depend on it)
+
+install_make_share_root:
+	$(INSTALL) -m 755 -d                                    $(DESTDIR)$(SHARED_ROOT_FOLDER)
+
+install_docs: install_make_share_root
 	$(INSTALL) -m 755 -d                                    $(DESTDIR)$(DOCUMENT_FOLDER)
 	$(INSTALL) -m 755 -d                                    $(DESTDIR)$(DOCUMENT_FOLDER)/docs
 	$(INSTALL) -m 755 -d                                    $(DESTDIR)$(DOCUMENT_FOLDER)/charsets
@@ -354,11 +367,11 @@ install_docs:
 	$(SED) $(SED_IN_PLACE) 's/\.\/hashcat/hashcat/'         $(DESTDIR)$(DOCUMENT_FOLDER)/example400.sh
 	$(SED) $(SED_IN_PLACE) 's/\.\/hashcat/hashcat/'         $(DESTDIR)$(DOCUMENT_FOLDER)/example500.sh
 
-install_shared:
+install_shared: install_make_share_root
 	$(INSTALL) -m 755 -d                                    $(DESTDIR)$(SHARED_FOLDER)
 	$(INSTALL) -m 755 -d                                    $(DESTDIR)$(SHARED_FOLDER)/OpenCL
-	$(INSTALL) -m 644 hashcat.hcstat                        $(DESTDIR)$(SHARED_FOLDER)/
 	$(INSTALL) -m 644 hashcat.hctune                        $(DESTDIR)$(SHARED_FOLDER)/
+	$(INSTALL) -m 644 hashcat.hcstat2                       $(DESTDIR)$(SHARED_FOLDER)/
 	$(FIND) OpenCL/   -type d -exec $(INSTALL) -m 755 -d    $(DESTDIR)$(SHARED_FOLDER)/{}   \;
 	$(FIND) OpenCL/   -type f -exec $(INSTALL) -m 644 {}    $(DESTDIR)$(SHARED_FOLDER)/{}   \;
 

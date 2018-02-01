@@ -18,7 +18,7 @@
                                                                                                             \
     if (atomic_inc (&hashes_shown[final_hash_pos]) == 0)                                                    \
     {                                                                                                       \
-      mark_hash (plains_buf, d_return_buf, salt_pos, digests_cnt, 0, final_hash_pos, gid, il_pos);                       \
+      mark_hash (plains_buf, d_return_buf, salt_pos, digests_cnt, 0, final_hash_pos, gid, il_pos);          \
     }                                                                                                       \
   }                                                                                                         \
 }
@@ -67,7 +67,7 @@
                                                                                                             \
     if (vector_accessible (il_pos, il_cnt, 0) && (atomic_inc (&hashes_shown[final_hash_pos]) == 0))         \
     {                                                                                                       \
-      mark_hash (plains_buf, d_return_buf, salt_pos, digests_cnt, 0, final_hash_pos, gid, il_pos + 0);                   \
+      mark_hash (plains_buf, d_return_buf, salt_pos, digests_cnt, 0, final_hash_pos, gid, il_pos + 0);      \
     }                                                                                                       \
   }                                                                                                         \
                                                                                                             \
@@ -77,7 +77,7 @@
                                                                                                             \
     if (vector_accessible (il_pos, il_cnt, 1) && (atomic_inc (&hashes_shown[final_hash_pos]) == 0))         \
     {                                                                                                       \
-      mark_hash (plains_buf, d_return_buf, salt_pos, digests_cnt, 0, final_hash_pos, gid, il_pos + 1);                   \
+      mark_hash (plains_buf, d_return_buf, salt_pos, digests_cnt, 0, final_hash_pos, gid, il_pos + 1);      \
     }                                                                                                       \
   }                                                                                                         \
 }
@@ -145,7 +145,7 @@
                                                                                                             \
     if (vector_accessible (il_pos, il_cnt, 0) && (atomic_inc (&hashes_shown[final_hash_pos]) == 0))         \
     {                                                                                                       \
-      mark_hash (plains_buf, d_return_buf, salt_pos, digests_cnt, 0, final_hash_pos, gid, il_pos + 0);                   \
+      mark_hash (plains_buf, d_return_buf, salt_pos, digests_cnt, 0, final_hash_pos, gid, il_pos + 0);      \
     }                                                                                                       \
   }                                                                                                         \
                                                                                                             \
@@ -155,7 +155,7 @@
                                                                                                             \
     if (vector_accessible (il_pos, il_cnt, 1) && (atomic_inc (&hashes_shown[final_hash_pos]) == 0))         \
     {                                                                                                       \
-      mark_hash (plains_buf, d_return_buf, salt_pos, digests_cnt, 0, final_hash_pos, gid, il_pos + 1);                   \
+      mark_hash (plains_buf, d_return_buf, salt_pos, digests_cnt, 0, final_hash_pos, gid, il_pos + 1);      \
     }                                                                                                       \
   }                                                                                                         \
                                                                                                             \
@@ -165,7 +165,7 @@
                                                                                                             \
     if (vector_accessible (il_pos, il_cnt, 2) && (atomic_inc (&hashes_shown[final_hash_pos]) == 0))         \
     {                                                                                                       \
-      mark_hash (plains_buf, d_return_buf, salt_pos, digests_cnt, 0, final_hash_pos, gid, il_pos + 2);                   \
+      mark_hash (plains_buf, d_return_buf, salt_pos, digests_cnt, 0, final_hash_pos, gid, il_pos + 2);      \
     }                                                                                                       \
   }                                                                                                         \
                                                                                                             \
@@ -175,7 +175,7 @@
                                                                                                             \
     if (vector_accessible (il_pos, il_cnt, 3) && (atomic_inc (&hashes_shown[final_hash_pos]) == 0))         \
     {                                                                                                       \
-      mark_hash (plains_buf, d_return_buf, salt_pos, digests_cnt, 0, final_hash_pos, gid, il_pos + 3);                   \
+      mark_hash (plains_buf, d_return_buf, salt_pos, digests_cnt, 0, final_hash_pos, gid, il_pos + 3);      \
     }                                                                                                       \
   }                                                                                                         \
 }
@@ -285,7 +285,7 @@
                                                                                                             \
     if (vector_accessible (il_pos, il_cnt, 0) && (atomic_inc (&hashes_shown[final_hash_pos]) == 0))         \
     {                                                                                                       \
-      mark_hash (plains_buf, d_return_buf, salt_pos, digests_cnt, 0, final_hash_pos, gid, il_pos + 0);                   \
+      mark_hash (plains_buf, d_return_buf, salt_pos, digests_cnt, 0, final_hash_pos, gid, il_pos + 0);      \
     }                                                                                                       \
   }                                                                                                         \
                                                                                                             \
@@ -295,7 +295,7 @@
                                                                                                             \
     if (vector_accessible (il_pos, il_cnt, 1) && (atomic_inc (&hashes_shown[final_hash_pos]) == 0))         \
     {                                                                                                       \
-      mark_hash (plains_buf, d_return_buf, salt_pos, digests_cnt, 0, final_hash_pos, gid, il_pos + 1);                   \
+      mark_hash (plains_buf, d_return_buf, salt_pos, digests_cnt, 0, final_hash_pos, gid, il_pos + 1);      \
     }                                                                                                       \
   }                                                                                                         \
                                                                                                             \
@@ -305,7 +305,7 @@
                                                                                                             \
     if (vector_accessible (il_pos, il_cnt, 2) && (atomic_inc (&hashes_shown[final_hash_pos]) == 0))         \
     {                                                                                                       \
-      mark_hash (plains_buf, d_return_buf, salt_pos, digests_cnt, 0, final_hash_pos, gid, il_pos + 2);                   \
+      mark_hash (plains_buf, d_return_buf, salt_pos, digests_cnt, 0, final_hash_pos, gid, il_pos + 2);      \
     }                                                                                                       \
   }                                                                                                         \
                                                                                                             \
@@ -315,7 +315,7 @@
                                                                                                             \
     if (vector_accessible (il_pos, il_cnt, 3) && (atomic_inc (&hashes_shown[final_hash_pos]) == 0))         \
     {                                                                                                       \
-      mark_hash (plains_buf, d_return_buf, salt_pos, digests_cnt, 0, final_hash_pos, gid, il_pos + 3);                   \
+      mark_hash (plains_buf, d_return_buf, salt_pos, digests_cnt, 0, final_hash_pos, gid, il_pos + 3);      \
     }                                                                                                       \
   }                                                                                                         \
   if (((h0).s4 == search[0]) && ((h1).s4 == search[1]) && ((h2).s4 == search[2]) && ((h3).s4 == search[3])) \
@@ -324,7 +324,7 @@
                                                                                                             \
     if (vector_accessible (il_pos, il_cnt, 4) && (atomic_inc (&hashes_shown[final_hash_pos]) == 0))         \
     {                                                                                                       \
-      mark_hash (plains_buf, d_return_buf, salt_pos, digests_cnt, 0, final_hash_pos, gid, il_pos + 4);                   \
+      mark_hash (plains_buf, d_return_buf, salt_pos, digests_cnt, 0, final_hash_pos, gid, il_pos + 4);      \
     }                                                                                                       \
   }                                                                                                         \
                                                                                                             \
@@ -334,7 +334,7 @@
                                                                                                             \
     if (vector_accessible (il_pos, il_cnt, 5) && (atomic_inc (&hashes_shown[final_hash_pos]) == 0))         \
     {                                                                                                       \
-      mark_hash (plains_buf, d_return_buf, salt_pos, digests_cnt, 0, final_hash_pos, gid, il_pos + 5);                   \
+      mark_hash (plains_buf, d_return_buf, salt_pos, digests_cnt, 0, final_hash_pos, gid, il_pos + 5);      \
     }                                                                                                       \
   }                                                                                                         \
                                                                                                             \
@@ -344,7 +344,7 @@
                                                                                                             \
     if (vector_accessible (il_pos, il_cnt, 6) && (atomic_inc (&hashes_shown[final_hash_pos]) == 0))         \
     {                                                                                                       \
-      mark_hash (plains_buf, d_return_buf, salt_pos, digests_cnt, 0, final_hash_pos, gid, il_pos + 6);                   \
+      mark_hash (plains_buf, d_return_buf, salt_pos, digests_cnt, 0, final_hash_pos, gid, il_pos + 6);      \
     }                                                                                                       \
   }                                                                                                         \
                                                                                                             \
@@ -354,7 +354,7 @@
                                                                                                             \
     if (vector_accessible (il_pos, il_cnt, 7) && (atomic_inc (&hashes_shown[final_hash_pos]) == 0))         \
     {                                                                                                       \
-      mark_hash (plains_buf, d_return_buf, salt_pos, digests_cnt, 0, final_hash_pos, gid, il_pos + 7);                   \
+      mark_hash (plains_buf, d_return_buf, salt_pos, digests_cnt, 0, final_hash_pos, gid, il_pos + 7);      \
     }                                                                                                       \
   }                                                                                                         \
 }
@@ -547,7 +547,7 @@
                                                                                                             \
     if (vector_accessible (il_pos, il_cnt, 0) && (atomic_inc (&hashes_shown[final_hash_pos]) == 0))         \
     {                                                                                                       \
-      mark_hash (plains_buf, d_return_buf, salt_pos, digests_cnt, 0, final_hash_pos, gid, il_pos + 0);                   \
+      mark_hash (plains_buf, d_return_buf, salt_pos, digests_cnt, 0, final_hash_pos, gid, il_pos + 0);      \
     }                                                                                                       \
   }                                                                                                         \
                                                                                                             \
@@ -557,7 +557,7 @@
                                                                                                             \
     if (vector_accessible (il_pos, il_cnt, 1) && (atomic_inc (&hashes_shown[final_hash_pos]) == 0))         \
     {                                                                                                       \
-      mark_hash (plains_buf, d_return_buf, salt_pos, digests_cnt, 0, final_hash_pos, gid, il_pos + 1);                   \
+      mark_hash (plains_buf, d_return_buf, salt_pos, digests_cnt, 0, final_hash_pos, gid, il_pos + 1);      \
     }                                                                                                       \
   }                                                                                                         \
                                                                                                             \
@@ -567,7 +567,7 @@
                                                                                                             \
     if (vector_accessible (il_pos, il_cnt, 2) && (atomic_inc (&hashes_shown[final_hash_pos]) == 0))         \
     {                                                                                                       \
-      mark_hash (plains_buf, d_return_buf, salt_pos, digests_cnt, 0, final_hash_pos, gid, il_pos + 2);                   \
+      mark_hash (plains_buf, d_return_buf, salt_pos, digests_cnt, 0, final_hash_pos, gid, il_pos + 2);      \
     }                                                                                                       \
   }                                                                                                         \
                                                                                                             \
@@ -577,7 +577,7 @@
                                                                                                             \
     if (vector_accessible (il_pos, il_cnt, 3) && (atomic_inc (&hashes_shown[final_hash_pos]) == 0))         \
     {                                                                                                       \
-      mark_hash (plains_buf, d_return_buf, salt_pos, digests_cnt, 0, final_hash_pos, gid, il_pos + 3);                   \
+      mark_hash (plains_buf, d_return_buf, salt_pos, digests_cnt, 0, final_hash_pos, gid, il_pos + 3);      \
     }                                                                                                       \
   }                                                                                                         \
   if (((h0).s4 == search[0]) && ((h1).s4 == search[1]) && ((h2).s4 == search[2]) && ((h3).s4 == search[3])) \
@@ -586,7 +586,7 @@
                                                                                                             \
     if (vector_accessible (il_pos, il_cnt, 4) && (atomic_inc (&hashes_shown[final_hash_pos]) == 0))         \
     {                                                                                                       \
-      mark_hash (plains_buf, d_return_buf, salt_pos, digests_cnt, 0, final_hash_pos, gid, il_pos + 4);                   \
+      mark_hash (plains_buf, d_return_buf, salt_pos, digests_cnt, 0, final_hash_pos, gid, il_pos + 4);      \
     }                                                                                                       \
   }                                                                                                         \
                                                                                                             \
@@ -596,7 +596,7 @@
                                                                                                             \
     if (vector_accessible (il_pos, il_cnt, 5) && (atomic_inc (&hashes_shown[final_hash_pos]) == 0))         \
     {                                                                                                       \
-      mark_hash (plains_buf, d_return_buf, salt_pos, digests_cnt, 0, final_hash_pos, gid, il_pos + 5);                   \
+      mark_hash (plains_buf, d_return_buf, salt_pos, digests_cnt, 0, final_hash_pos, gid, il_pos + 5);      \
     }                                                                                                       \
   }                                                                                                         \
                                                                                                             \
@@ -606,7 +606,7 @@
                                                                                                             \
     if (vector_accessible (il_pos, il_cnt, 6) && (atomic_inc (&hashes_shown[final_hash_pos]) == 0))         \
     {                                                                                                       \
-      mark_hash (plains_buf, d_return_buf, salt_pos, digests_cnt, 0, final_hash_pos, gid, il_pos + 6);                   \
+      mark_hash (plains_buf, d_return_buf, salt_pos, digests_cnt, 0, final_hash_pos, gid, il_pos + 6);      \
     }                                                                                                       \
   }                                                                                                         \
                                                                                                             \
@@ -616,7 +616,7 @@
                                                                                                             \
     if (vector_accessible (il_pos, il_cnt, 7) && (atomic_inc (&hashes_shown[final_hash_pos]) == 0))         \
     {                                                                                                       \
-      mark_hash (plains_buf, d_return_buf, salt_pos, digests_cnt, 0, final_hash_pos, gid, il_pos + 7);                   \
+      mark_hash (plains_buf, d_return_buf, salt_pos, digests_cnt, 0, final_hash_pos, gid, il_pos + 7);      \
     }                                                                                                       \
   }                                                                                                         \
                                                                                                             \
@@ -626,7 +626,7 @@
                                                                                                             \
     if (vector_accessible (il_pos, il_cnt, 8) && (atomic_inc (&hashes_shown[final_hash_pos]) == 0))         \
     {                                                                                                       \
-      mark_hash (plains_buf, d_return_buf, salt_pos, digests_cnt, 0, final_hash_pos, gid, il_pos + 8);                   \
+      mark_hash (plains_buf, d_return_buf, salt_pos, digests_cnt, 0, final_hash_pos, gid, il_pos + 8);      \
     }                                                                                                       \
   }                                                                                                         \
                                                                                                             \
@@ -636,7 +636,7 @@
                                                                                                             \
     if (vector_accessible (il_pos, il_cnt, 9) && (atomic_inc (&hashes_shown[final_hash_pos]) == 0))         \
     {                                                                                                       \
-      mark_hash (plains_buf, d_return_buf, salt_pos, digests_cnt, 0, final_hash_pos, gid, il_pos + 9);                   \
+      mark_hash (plains_buf, d_return_buf, salt_pos, digests_cnt, 0, final_hash_pos, gid, il_pos + 9);      \
     }                                                                                                       \
   }                                                                                                         \
                                                                                                             \
@@ -1048,7 +1048,7 @@
 
 // attack-mode 0
 
-inline u32x ix_create_bft (__global const bf_t *bfs_buf, const u32 il_pos)
+u32x ix_create_bft (__global const bf_t *bfs_buf, const u32 il_pos)
 {
   #if   VECT_SIZE == 1
   const u32x ix = (u32x) (bfs_buf[il_pos + 0].i);
@@ -1067,7 +1067,7 @@ inline u32x ix_create_bft (__global const bf_t *bfs_buf, const u32 il_pos)
 
 // attack-mode 1
 
-inline u32x pwlenx_create_combt (__global const comb_t *combs_buf, const u32 il_pos)
+u32x pwlenx_create_combt (__global const pw_t *combs_buf, const u32 il_pos)
 {
   #if   VECT_SIZE == 1
   const u32x pw_lenx = (u32x) (combs_buf[il_pos + 0].pw_len);
@@ -1084,7 +1084,7 @@ inline u32x pwlenx_create_combt (__global const comb_t *combs_buf, const u32 il_
   return pw_lenx;
 }
 
-inline u32x ix_create_combt (__global const comb_t *combs_buf, const u32 il_pos, const int idx)
+u32x ix_create_combt (__global const pw_t *combs_buf, const u32 il_pos, const int idx)
 {
   #if   VECT_SIZE == 1
   const u32x ix = (u32x) (combs_buf[il_pos + 0].i[idx]);
@@ -1114,18 +1114,6 @@ inline u32x ix_create_combt (__global const comb_t *combs_buf, const u32 il_pos,
 #endif
 
 #if   VECT_SIZE == 1
-#define packvf(arr,var,gid) (u32x) ((arr)[((gid) *  1) + 0].var)
-#elif VECT_SIZE == 2
-#define packvf(arr,var,gid) (u32x) ((arr)[((gid) *  2) + 0].var, (arr)[((gid) *  2) + 1].var)
-#elif VECT_SIZE == 4
-#define packvf(arr,var,gid) (u32x) ((arr)[((gid) *  4) + 0].var, (arr)[((gid) *  4) + 1].var, (arr)[((gid) *  4) + 2].var, (arr)[((gid) *  4) + 3].var)
-#elif VECT_SIZE == 8
-#define packvf(arr,var,gid) (u32x) ((arr)[((gid) *  8) + 0].var, (arr)[((gid) *  8) + 1].var, (arr)[((gid) *  8) + 2].var, (arr)[((gid) *  8) + 3].var, (arr)[((gid) *  8) + 4].var, (arr)[((gid) *  8) + 5].var, (arr)[((gid) *  8) + 6].var, (arr)[((gid) *  8) + 7].var)
-#elif VECT_SIZE == 16
-#define packvf(arr,var,gid) (u32x) ((arr)[((gid) * 16) + 0].var, (arr)[((gid) * 16) + 1].var, (arr)[((gid) * 16) + 2].var, (arr)[((gid) * 16) + 3].var, (arr)[((gid) * 16) + 4].var, (arr)[((gid) * 16) + 5].var, (arr)[((gid) * 16) + 6].var, (arr)[((gid) * 16) + 7].var, (arr)[((gid) * 16) + 8].var, (arr)[((gid) * 16) + 9].var, (arr)[((gid) * 16) + 10].var, (arr)[((gid) * 16) + 11].var, (arr)[((gid) * 16) + 12].var, (arr)[((gid) * 16) + 13].var, (arr)[((gid) * 16) + 14].var, (arr)[((gid) * 16) + 15].var)
-#endif
-
-#if   VECT_SIZE == 1
 #define pack64v(arr,var,gid,idx) (u64x) ((arr)[((gid) *  1) + 0].var[(idx)])
 #elif VECT_SIZE == 2
 #define pack64v(arr,var,gid,idx) (u64x) ((arr)[((gid) *  2) + 0].var[(idx)], (arr)[((gid) *  2) + 1].var[(idx)])
@@ -1135,6 +1123,18 @@ inline u32x ix_create_combt (__global const comb_t *combs_buf, const u32 il_pos,
 #define pack64v(arr,var,gid,idx) (u64x) ((arr)[((gid) *  8) + 0].var[(idx)], (arr)[((gid) *  8) + 1].var[(idx)], (arr)[((gid) *  8) + 2].var[(idx)], (arr)[((gid) *  8) + 3].var[(idx)], (arr)[((gid) *  8) + 4].var[(idx)], (arr)[((gid) *  8) + 5].var[(idx)], (arr)[((gid) *  8) + 6].var[(idx)], (arr)[((gid) *  8) + 7].var[(idx)])
 #elif VECT_SIZE == 16
 #define pack64v(arr,var,gid,idx) (u64x) ((arr)[((gid) * 16) + 0].var[(idx)], (arr)[((gid) * 16) + 1].var[(idx)], (arr)[((gid) * 16) + 2].var[(idx)], (arr)[((gid) * 16) + 3].var[(idx)], (arr)[((gid) * 16) + 4].var[(idx)], (arr)[((gid) * 16) + 5].var[(idx)], (arr)[((gid) * 16) + 6].var[(idx)], (arr)[((gid) * 16) + 7].var[(idx)], (arr)[((gid) * 16) + 8].var[(idx)], (arr)[((gid) * 16) + 9].var[(idx)], (arr)[((gid) * 16) + 10].var[(idx)], (arr)[((gid) * 16) + 11].var[(idx)], (arr)[((gid) * 16) + 12].var[(idx)], (arr)[((gid) * 16) + 13].var[(idx)], (arr)[((gid) * 16) + 14].var[(idx)], (arr)[((gid) * 16) + 15].var[(idx)])
+#endif
+
+#if   VECT_SIZE == 1
+#define packvf(arr,var,gid) (u32x) ((arr)[((gid) *  1) + 0].var)
+#elif VECT_SIZE == 2
+#define packvf(arr,var,gid) (u32x) ((arr)[((gid) *  2) + 0].var, (arr)[((gid) *  2) + 1].var)
+#elif VECT_SIZE == 4
+#define packvf(arr,var,gid) (u32x) ((arr)[((gid) *  4) + 0].var, (arr)[((gid) *  4) + 1].var, (arr)[((gid) *  4) + 2].var, (arr)[((gid) *  4) + 3].var)
+#elif VECT_SIZE == 8
+#define packvf(arr,var,gid) (u32x) ((arr)[((gid) *  8) + 0].var, (arr)[((gid) *  8) + 1].var, (arr)[((gid) *  8) + 2].var, (arr)[((gid) *  8) + 3].var, (arr)[((gid) *  8) + 4].var, (arr)[((gid) *  8) + 5].var, (arr)[((gid) *  8) + 6].var, (arr)[((gid) *  8) + 7].var)
+#elif VECT_SIZE == 16
+#define packvf(arr,var,gid) (u32x) ((arr)[((gid) * 16) + 0].var, (arr)[((gid) * 16) + 1].var, (arr)[((gid) * 16) + 2].var, (arr)[((gid) * 16) + 3].var, (arr)[((gid) * 16) + 4].var, (arr)[((gid) * 16) + 5].var, (arr)[((gid) * 16) + 6].var, (arr)[((gid) * 16) + 7].var, (arr)[((gid) * 16) + 8].var, (arr)[((gid) * 16) + 9].var, (arr)[((gid) * 16) + 10].var, (arr)[((gid) * 16) + 11].var, (arr)[((gid) * 16) + 12].var, (arr)[((gid) * 16) + 13].var, (arr)[((gid) * 16) + 14].var, (arr)[((gid) * 16) + 15].var)
 #endif
 
 #if   VECT_SIZE == 1
@@ -1159,6 +1159,18 @@ inline u32x ix_create_combt (__global const comb_t *combs_buf, const u32 il_pos,
 #define unpackv(arr,var,gid,idx,val) (arr)[((gid) *  8) + 0].var[(idx)] = val.s0; (arr)[((gid) *  8) + 1].var[(idx)] = val.s1; (arr)[((gid) *  8) + 2].var[(idx)] = val.s2; (arr)[((gid) *  8) + 3].var[(idx)] = val.s3; (arr)[((gid) *  8) + 4].var[(idx)] = val.s4; (arr)[((gid) *  8) + 5].var[(idx)] = val.s5; (arr)[((gid) *  8) + 6].var[(idx)] = val.s6; (arr)[((gid) *  8) + 7].var[(idx)] = val.s7;
 #elif VECT_SIZE == 16
 #define unpackv(arr,var,gid,idx,val) (arr)[((gid) * 16) + 0].var[(idx)] = val.s0; (arr)[((gid) * 16) + 1].var[(idx)] = val.s1; (arr)[((gid) * 16) + 2].var[(idx)] = val.s2; (arr)[((gid) * 16) + 3].var[(idx)] = val.s3; (arr)[((gid) * 16) + 4].var[(idx)] = val.s4; (arr)[((gid) * 16) + 5].var[(idx)] = val.s5; (arr)[((gid) * 16) + 6].var[(idx)] = val.s6; (arr)[((gid) * 16) + 7].var[(idx)] = val.s7; (arr)[((gid) * 16) + 8].var[(idx)] = val.s8; (arr)[((gid) * 16) + 9].var[(idx)] = val.s9; (arr)[((gid) * 16) + 10].var[(idx)] = val.sa; (arr)[((gid) * 16) + 11].var[(idx)] = val.sb; (arr)[((gid) * 16) + 12].var[(idx)] = val.sc; (arr)[((gid) * 16) + 13].var[(idx)] = val.sd; (arr)[((gid) * 16) + 14].var[(idx)] = val.se; (arr)[((gid) * 16) + 15].var[(idx)] = val.sf;
+#endif
+
+#if   VECT_SIZE == 1
+#define unpack64v(arr,var,gid,idx,val) (arr)[((gid) *  1) + 0].var[(idx)] = val;
+#elif VECT_SIZE == 2
+#define unpack64v(arr,var,gid,idx,val) (arr)[((gid) *  2) + 0].var[(idx)] = val.s0; (arr)[((gid) *  2) + 1].var[(idx)] = val.s1;
+#elif VECT_SIZE == 4
+#define unpack64v(arr,var,gid,idx,val) (arr)[((gid) *  4) + 0].var[(idx)] = val.s0; (arr)[((gid) *  4) + 1].var[(idx)] = val.s1; (arr)[((gid) *  4) + 2].var[(idx)] = val.s2; (arr)[((gid) *  4) + 3].var[(idx)] = val.s3;
+#elif VECT_SIZE == 8
+#define unpack64v(arr,var,gid,idx,val) (arr)[((gid) *  8) + 0].var[(idx)] = val.s0; (arr)[((gid) *  8) + 1].var[(idx)] = val.s1; (arr)[((gid) *  8) + 2].var[(idx)] = val.s2; (arr)[((gid) *  8) + 3].var[(idx)] = val.s3; (arr)[((gid) *  8) + 4].var[(idx)] = val.s4; (arr)[((gid) *  8) + 5].var[(idx)] = val.s5; (arr)[((gid) *  8) + 6].var[(idx)] = val.s6; (arr)[((gid) *  8) + 7].var[(idx)] = val.s7;
+#elif VECT_SIZE == 16
+#define unpack64v(arr,var,gid,idx,val) (arr)[((gid) * 16) + 0].var[(idx)] = val.s0; (arr)[((gid) * 16) + 1].var[(idx)] = val.s1; (arr)[((gid) * 16) + 2].var[(idx)] = val.s2; (arr)[((gid) * 16) + 3].var[(idx)] = val.s3; (arr)[((gid) * 16) + 4].var[(idx)] = val.s4; (arr)[((gid) * 16) + 5].var[(idx)] = val.s5; (arr)[((gid) * 16) + 6].var[(idx)] = val.s6; (arr)[((gid) * 16) + 7].var[(idx)] = val.s7; (arr)[((gid) * 16) + 8].var[(idx)] = val.s8; (arr)[((gid) * 16) + 9].var[(idx)] = val.s9; (arr)[((gid) * 16) + 10].var[(idx)] = val.sa; (arr)[((gid) * 16) + 11].var[(idx)] = val.sb; (arr)[((gid) * 16) + 12].var[(idx)] = val.sc; (arr)[((gid) * 16) + 13].var[(idx)] = val.sd; (arr)[((gid) * 16) + 14].var[(idx)] = val.se; (arr)[((gid) * 16) + 15].var[(idx)] = val.sf;
 #endif
 
 #if   VECT_SIZE == 1

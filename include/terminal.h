@@ -22,7 +22,7 @@
 #endif // _WIN
 
 void welcome_screen (hashcat_ctx_t *hashcat_ctx, const char *version_tag);
-void goodbye_screen (hashcat_ctx_t *hashcat_ctx, const time_t proc_start, const time_t proc_stop);
+void goodbye_screen (hashcat_ctx_t *hashcat_ctx, const hc_time_t proc_start, const hc_time_t proc_stop);
 
 int setup_console (void);
 
@@ -40,6 +40,8 @@ int tty_getchar(void);
 int tty_fix(void);
 
 void compress_terminal_line_length (char *out_buf, const size_t keep_from_beginning, const size_t keep_from_end);
+
+void example_hashes                     (hashcat_ctx_t *hashcat_ctx);
 
 void opencl_info                        (hashcat_ctx_t *hashcat_ctx);
 void opencl_info_compact                (hashcat_ctx_t *hashcat_ctx);

@@ -9,6 +9,8 @@
 #include "event.h"
 #include "user_options.h"
 #include "shared.h"
+#include "pidfile.h"
+#include "folder.h"
 #include "restore.h"
 
 #if defined (_WIN)
@@ -45,7 +47,8 @@ static int init_restore (hashcat_ctx_t *hashcat_ctx)
 
 static int read_restore (hashcat_ctx_t *hashcat_ctx)
 {
-  restore_ctx_t *restore_ctx = hashcat_ctx->restore_ctx;
+  restore_ctx_t   *restore_ctx   = hashcat_ctx->restore_ctx;
+  folder_config_t *folder_config = hashcat_ctx->folder_config;
 
   if (restore_ctx->enabled == false) return 0;
 
@@ -131,20 +134,53 @@ static int read_restore (hashcat_ctx_t *hashcat_ctx)
     return -1;
   }
 
-  event_log_warning (hashcat_ctx, "Changing current working directory to '%s'", rd->cwd);
-  event_log_warning (hashcat_ctx, NULL);
-
-  if (chdir (rd->cwd))
+  if (strncmp (rd->cwd, folder_config->cwd, sizeof (rd->cwd)) != 0) // check if we need to change the current working directory
   {
-    event_log_error (hashcat_ctx, "Directory '%s' needed to restore the session was not found.", rd->cwd);
-
-    event_log_warning (hashcat_ctx, "Either create the directory, or update the directory within the .restore file.");
-    event_log_warning (hashcat_ctx, "Restore files can be analyzed and modified with analyze_hc_restore.pl:");
-    event_log_warning (hashcat_ctx, "    https://github.com/philsmd/analyze_hc_restore");
-    event_log_warning (hashcat_ctx, "Directory must contain all files and folders from the original command line.");
+    event_log_warning (hashcat_ctx, "Changing current working directory to '%s'", rd->cwd);
     event_log_warning (hashcat_ctx, NULL);
 
-    return -1;
+    if (chdir (rd->cwd))
+    {
+      event_log_error (hashcat_ctx, "Directory '%s' needed to restore the session was not found.", rd->cwd);
+
+      event_log_warning (hashcat_ctx, "Either create the directory, or update the directory within the .restore file.");
+      event_log_warning (hashcat_ctx, "Restore files can be analyzed and modified with analyze_hc_restore.pl:");
+      event_log_warning (hashcat_ctx, "    https://github.com/philsmd/analyze_hc_restore");
+      event_log_warning (hashcat_ctx, "Directory must contain all files and folders from the original command line.");
+      event_log_warning (hashcat_ctx, NULL);
+
+      return -1;
+    }
+
+    // if we are here, we also need to update the folder_config and .pid file:
+
+    /**
+     * updated folders
+     */
+
+    // copy the paths of INSTALL_FOLDER and SHARED_FOLDER from the folder config:
+
+    char *install_folder = hcstrdup (folder_config->install_dir);
+    char *shared_folder  = hcstrdup (folder_config->shared_dir);
+
+    folder_config_destroy (hashcat_ctx);
+
+    const int rc_folder_config_init = folder_config_init (hashcat_ctx, install_folder, shared_folder);
+
+    hcfree (install_folder);
+    hcfree (shared_folder);
+
+    if (rc_folder_config_init == -1) return -1;
+
+    /**
+     * updated pidfile
+     */
+
+    pidfile_ctx_destroy (hashcat_ctx);
+
+    const int rc_pidfile_init = pidfile_ctx_init (hashcat_ctx);
+
+    if (rc_pidfile_init == -1) return -1;
   }
 
   return 0;
@@ -185,7 +221,7 @@ static int write_restore (hashcat_ctx_t *hashcat_ctx)
     return -1;
   }
 
-  fwrite (rd, sizeof (restore_data_t), 1, fp);
+  hc_fwrite (rd, sizeof (restore_data_t), 1, fp);
 
   for (u32 i = 0; i < rd->argc; i++)
   {
@@ -265,6 +301,7 @@ int restore_ctx_init (hashcat_ctx_t *hashcat_ctx, int argc, char **argv)
   restore_ctx->enabled = false;
 
   if (user_options->benchmark       == true) return 0;
+  if (user_options->example_hashes  == true) return 0;
   if (user_options->keyspace        == true) return 0;
   if (user_options->left            == true) return 0;
   if (user_options->opencl_info     == true) return 0;

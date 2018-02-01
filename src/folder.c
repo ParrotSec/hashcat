@@ -125,7 +125,7 @@ int count_dictionaries (char **dictionary_files)
 
 char *first_file_in_directory (const char *path)
 {
-  DIR *d = NULL;
+  DIR *d;
 
   if ((d = opendir (path)) != NULL)
   {
@@ -164,10 +164,6 @@ char *first_file_in_directory (const char *path)
     closedir (d);
 
     return first_file;
-  }
-  else if (errno == ENOTDIR)
-  {
-    return NULL;
   }
 
   return NULL;
@@ -435,9 +431,31 @@ int folder_config_init (hashcat_ctx_t *hashcat_ctx, MAYBE_UNUSED const char *ins
     hcfree (cwd);
 
     hcfree (shared_dir);
+
+    // Attention: since hcfree () doesn't set the pointer to NULL, we need to do it externally such that
+    // we prevent double-freeing the same memory address (this happens if e.g. profile_dir == session_dir)
+
+    if (profile_dir == shared_dir) profile_dir = NULL;
+    if (session_dir == shared_dir) session_dir = NULL;
+
+    shared_dir = NULL;
+
+
     hcfree (profile_dir);
-    hcfree (cpath_real);
+
+    if (session_dir == profile_dir) session_dir = NULL;
+
+    profile_dir = NULL;
+
+
     hcfree (session_dir);
+
+    session_dir = NULL;
+
+
+    hcfree (cpath_real);
+
+    cpath_real = NULL;
 
     return -1;
   }

@@ -11,6 +11,7 @@
 #include "inc_types.cl"
 #include "inc_common.cl"
 #include "inc_simd.cl"
+#include "inc_hash_md4.cl"
 
 #define PERM_OP(a,b,tt,n,m) \
 {                           \
@@ -486,14 +487,47 @@ void transform_netntlmv1_key (const u32x w0, const u32x w1, u32x out[2])
          | ((k[7] & 0xff) << 24);
 }
 
-void m05500m (__local u32 (*s_SPtrans)[64], __local u32 (*s_skb)[64], u32 w[16], const u32 pw_len, __global pw_t *pws, __global const kernel_rule_t *rules_buf, __global const comb_t *combs_buf, __global const u32x *words_buf_r, __global void *tmps, __global void *hooks, __global const u32 *bitmaps_buf_s1_a, __global const u32 *bitmaps_buf_s1_b, __global const u32 *bitmaps_buf_s1_c, __global const u32 *bitmaps_buf_s1_d, __global const u32 *bitmaps_buf_s2_a, __global const u32 *bitmaps_buf_s2_b, __global const u32 *bitmaps_buf_s2_c, __global const u32 *bitmaps_buf_s2_d, __global plain_t *plains_buf, __global const digest_t *digests_buf, __global u32 *hashes_shown, __global const salt_t *salt_bufs, __global const void *esalt_bufs, __global u32 *d_return_buf, __global u32 *d_scryptV0_buf, __global u32 *d_scryptV1_buf, __global u32 *d_scryptV2_buf, __global u32 *d_scryptV3_buf, const u32 bitmap_mask, const u32 bitmap_shift1, const u32 bitmap_shift2, const u32 salt_pos, const u32 loop_pos, const u32 loop_cnt, const u32 il_cnt, const u32 digests_cnt, const u32 digests_offset)
+__kernel void m05500_mxx (__global pw_t *pws, __global const kernel_rule_t *rules_buf, __global const pw_t *combs_buf, __constant const u32x *words_buf_r, __global void *tmps, __global void *hooks, __global const u32 *bitmaps_buf_s1_a, __global const u32 *bitmaps_buf_s1_b, __global const u32 *bitmaps_buf_s1_c, __global const u32 *bitmaps_buf_s1_d, __global const u32 *bitmaps_buf_s2_a, __global const u32 *bitmaps_buf_s2_b, __global const u32 *bitmaps_buf_s2_c, __global const u32 *bitmaps_buf_s2_d, __global plain_t *plains_buf, __global const digest_t *digests_buf, __global u32 *hashes_shown, __global const salt_t *salt_bufs, __global const void *esalt_bufs, __global u32 *d_return_buf, __global u32 *d_scryptV0_buf, __global u32 *d_scryptV1_buf, __global u32 *d_scryptV2_buf, __global u32 *d_scryptV3_buf, const u32 bitmap_mask, const u32 bitmap_shift1, const u32 bitmap_shift2, const u32 salt_pos, const u32 loop_pos, const u32 loop_cnt, const u32 il_cnt, const u32 digests_cnt, const u32 digests_offset, const u32 combs_mode, const u64 gid_max)
 {
   /**
    * modifier
    */
 
-  const u32 gid = get_global_id (0);
-  const u32 lid = get_local_id (0);
+  const u64 gid = get_global_id (0);
+  const u64 lid = get_local_id (0);
+  const u64 lsz = get_local_size (0);
+
+  /**
+   * sbox, kbox
+   */
+
+  __local u32 s_SPtrans[8][64];
+  __local u32 s_skb[8][64];
+
+  for (u32 i = lid; i < 64; i += lsz)
+  {
+    s_SPtrans[0][i] = c_SPtrans[0][i];
+    s_SPtrans[1][i] = c_SPtrans[1][i];
+    s_SPtrans[2][i] = c_SPtrans[2][i];
+    s_SPtrans[3][i] = c_SPtrans[3][i];
+    s_SPtrans[4][i] = c_SPtrans[4][i];
+    s_SPtrans[5][i] = c_SPtrans[5][i];
+    s_SPtrans[6][i] = c_SPtrans[6][i];
+    s_SPtrans[7][i] = c_SPtrans[7][i];
+
+    s_skb[0][i] = c_skb[0][i];
+    s_skb[1][i] = c_skb[1][i];
+    s_skb[2][i] = c_skb[2][i];
+    s_skb[3][i] = c_skb[3][i];
+    s_skb[4][i] = c_skb[4][i];
+    s_skb[5][i] = c_skb[5][i];
+    s_skb[6][i] = c_skb[6][i];
+    s_skb[7][i] = c_skb[7][i];
+  }
+
+  barrier (CLK_LOCAL_MEM_FENCE);
+
+  if (gid >= gid_max) return;
 
   /**
    * salt
@@ -504,10 +538,23 @@ void m05500m (__local u32 (*s_SPtrans)[64], __local u32 (*s_skb)[64], u32 w[16],
   const u32 s2 = salt_bufs[salt_pos].salt_buf[2];
 
   /**
+   * base
+   */
+
+  const u32 pw_len = pws[gid].pw_len;
+
+  u32x w[64] = { 0 };
+
+  for (int i = 0, idx = 0; i < pw_len; i += 4, idx += 1)
+  {
+    w[idx] = pws[gid].i[idx];
+  }
+
+  /**
    * loop
    */
 
-  u32 w0l = w[0];
+  u32x w0l = w[0];
 
   for (u32 il_pos = 0; il_pos < il_cnt; il_pos += VECT_SIZE)
   {
@@ -515,91 +562,22 @@ void m05500m (__local u32 (*s_SPtrans)[64], __local u32 (*s_skb)[64], u32 w[16],
 
     const u32x w0 = w0l | w0r;
 
-    u32x w0_t[4];
-    u32x w1_t[4];
-    u32x w2_t[4];
-    u32x w3_t[4];
+    w[0] = w0;
 
-    w0_t[0] = w0;
-    w0_t[1] = w[ 1];
-    w0_t[2] = w[ 2];
-    w0_t[3] = w[ 3];
-    w1_t[0] = w[ 4];
-    w1_t[1] = w[ 5];
-    w1_t[2] = w[ 6];
-    w1_t[3] = w[ 7];
-    w2_t[0] = w[ 8];
-    w2_t[1] = w[ 9];
-    w2_t[2] = w[10];
-    w2_t[3] = w[11];
-    w3_t[0] = w[12];
-    w3_t[1] = w[13];
-    w3_t[2] = w[14];
-    w3_t[3] = w[15];
+    md4_ctx_vector_t ctx;
 
-    u32x a = MD4M_A;
-    u32x b = MD4M_B;
-    u32x c = MD4M_C;
-    u32x d = MD4M_D;
+    md4_init_vector (&ctx);
 
-    MD4_STEP (MD4_Fo, a, b, c, d, w0_t[0], MD4C00, MD4S00);
-    MD4_STEP (MD4_Fo, d, a, b, c, w0_t[1], MD4C00, MD4S01);
-    MD4_STEP (MD4_Fo, c, d, a, b, w0_t[2], MD4C00, MD4S02);
-    MD4_STEP (MD4_Fo, b, c, d, a, w0_t[3], MD4C00, MD4S03);
-    MD4_STEP (MD4_Fo, a, b, c, d, w1_t[0], MD4C00, MD4S00);
-    MD4_STEP (MD4_Fo, d, a, b, c, w1_t[1], MD4C00, MD4S01);
-    MD4_STEP (MD4_Fo, c, d, a, b, w1_t[2], MD4C00, MD4S02);
-    MD4_STEP (MD4_Fo, b, c, d, a, w1_t[3], MD4C00, MD4S03);
-    MD4_STEP (MD4_Fo, a, b, c, d, w2_t[0], MD4C00, MD4S00);
-    MD4_STEP (MD4_Fo, d, a, b, c, w2_t[1], MD4C00, MD4S01);
-    MD4_STEP (MD4_Fo, c, d, a, b, w2_t[2], MD4C00, MD4S02);
-    MD4_STEP (MD4_Fo, b, c, d, a, w2_t[3], MD4C00, MD4S03);
-    MD4_STEP (MD4_Fo, a, b, c, d, w3_t[0], MD4C00, MD4S00);
-    MD4_STEP (MD4_Fo, d, a, b, c, w3_t[1], MD4C00, MD4S01);
-    MD4_STEP (MD4_Fo, c, d, a, b, w3_t[2], MD4C00, MD4S02);
-    MD4_STEP (MD4_Fo, b, c, d, a, w3_t[3], MD4C00, MD4S03);
+    md4_update_vector_utf16le (&ctx, w, pw_len);
 
-    MD4_STEP (MD4_Go, a, b, c, d, w0_t[0], MD4C01, MD4S10);
-    MD4_STEP (MD4_Go, d, a, b, c, w1_t[0], MD4C01, MD4S11);
-    MD4_STEP (MD4_Go, c, d, a, b, w2_t[0], MD4C01, MD4S12);
-    MD4_STEP (MD4_Go, b, c, d, a, w3_t[0], MD4C01, MD4S13);
-    MD4_STEP (MD4_Go, a, b, c, d, w0_t[1], MD4C01, MD4S10);
-    MD4_STEP (MD4_Go, d, a, b, c, w1_t[1], MD4C01, MD4S11);
-    MD4_STEP (MD4_Go, c, d, a, b, w2_t[1], MD4C01, MD4S12);
-    MD4_STEP (MD4_Go, b, c, d, a, w3_t[1], MD4C01, MD4S13);
-    MD4_STEP (MD4_Go, a, b, c, d, w0_t[2], MD4C01, MD4S10);
-    MD4_STEP (MD4_Go, d, a, b, c, w1_t[2], MD4C01, MD4S11);
-    MD4_STEP (MD4_Go, c, d, a, b, w2_t[2], MD4C01, MD4S12);
-    MD4_STEP (MD4_Go, b, c, d, a, w3_t[2], MD4C01, MD4S13);
-    MD4_STEP (MD4_Go, a, b, c, d, w0_t[3], MD4C01, MD4S10);
-    MD4_STEP (MD4_Go, d, a, b, c, w1_t[3], MD4C01, MD4S11);
-    MD4_STEP (MD4_Go, c, d, a, b, w2_t[3], MD4C01, MD4S12);
-    MD4_STEP (MD4_Go, b, c, d, a, w3_t[3], MD4C01, MD4S13);
+    md4_final_vector (&ctx);
 
-    MD4_STEP (MD4_H , a, b, c, d, w0_t[0], MD4C02, MD4S20);
-    MD4_STEP (MD4_H , d, a, b, c, w2_t[0], MD4C02, MD4S21);
-    MD4_STEP (MD4_H , c, d, a, b, w1_t[0], MD4C02, MD4S22);
-    MD4_STEP (MD4_H , b, c, d, a, w3_t[0], MD4C02, MD4S23);
-    MD4_STEP (MD4_H , a, b, c, d, w0_t[2], MD4C02, MD4S20);
-    MD4_STEP (MD4_H , d, a, b, c, w2_t[2], MD4C02, MD4S21);
-    MD4_STEP (MD4_H , c, d, a, b, w1_t[2], MD4C02, MD4S22);
-    MD4_STEP (MD4_H , b, c, d, a, w3_t[2], MD4C02, MD4S23);
-    MD4_STEP (MD4_H , a, b, c, d, w0_t[1], MD4C02, MD4S20);
-    MD4_STEP (MD4_H , d, a, b, c, w2_t[1], MD4C02, MD4S21);
-    MD4_STEP (MD4_H , c, d, a, b, w1_t[1], MD4C02, MD4S22);
-    MD4_STEP (MD4_H , b, c, d, a, w3_t[1], MD4C02, MD4S23);
-    MD4_STEP (MD4_H , a, b, c, d, w0_t[3], MD4C02, MD4S20);
-    MD4_STEP (MD4_H , d, a, b, c, w2_t[3], MD4C02, MD4S21);
+    const u32x a = ctx.h[0];
+    const u32x b = ctx.h[1];
+    const u32x c = ctx.h[2];
+    const u32x d = ctx.h[3];
 
-    if (MATCHES_NONE_VS (((d + MD4M_D) >> 16), s2)) continue;
-
-    MD4_STEP (MD4_H , c, d, a, b, w1_t[3], MD4C02, MD4S22);
-    MD4_STEP (MD4_H , b, c, d, a, w3_t[3], MD4C02, MD4S23);
-
-    a += MD4M_A;
-    b += MD4M_B;
-    c += MD4M_C;
-    d += MD4M_D;
+    if (MATCHES_NONE_VS ((d >> 16), s2)) continue;
 
     /**
      * DES1
@@ -619,9 +597,9 @@ void m05500m (__local u32 (*s_SPtrans)[64], __local u32 (*s_skb)[64], u32 w[16],
     data[0] = s0;
     data[1] = s1;
 
-    u32x iv1[2];
+    u32x out1[2];
 
-    _des_crypt_encrypt (iv1, data, Kc, Kd, s_SPtrans);
+    _des_crypt_encrypt (out1, data, Kc, Kd, s_SPtrans);
 
     /**
      * DES2
@@ -631,34 +609,60 @@ void m05500m (__local u32 (*s_SPtrans)[64], __local u32 (*s_skb)[64], u32 w[16],
 
     _des_crypt_keysetup (key[0], key[1], Kc, Kd, s_skb);
 
-    u32x iv2[2];
+    u32x out2[2];
 
-    _des_crypt_encrypt (iv2, data, Kc, Kd, s_SPtrans);
+    _des_crypt_encrypt (out2, data, Kc, Kd, s_SPtrans);
 
-    /**
-     * compare
-     */
+    const u32x r0 = out1[0];
+    const u32x r1 = out1[1];
+    const u32x r2 = out2[0];
+    const u32x r3 = out2[1];
 
-    COMPARE_M_SIMD (iv1[0], iv1[1], iv2[0], iv2[1]);
+    COMPARE_M_SIMD (r0, r1, r2, r3);
   }
 }
 
-void m05500s (__local u32 (*s_SPtrans)[64], __local u32 (*s_skb)[64], u32 w[16], const u32 pw_len, __global pw_t *pws, __global const kernel_rule_t *rules_buf, __global const comb_t *combs_buf, __global const u32x *words_buf_r, __global void *tmps, __global void *hooks, __global const u32 *bitmaps_buf_s1_a, __global const u32 *bitmaps_buf_s1_b, __global const u32 *bitmaps_buf_s1_c, __global const u32 *bitmaps_buf_s1_d, __global const u32 *bitmaps_buf_s2_a, __global const u32 *bitmaps_buf_s2_b, __global const u32 *bitmaps_buf_s2_c, __global const u32 *bitmaps_buf_s2_d, __global plain_t *plains_buf, __global const digest_t *digests_buf, __global u32 *hashes_shown, __global const salt_t *salt_bufs, __global const void *esalt_bufs, __global u32 *d_return_buf, __global u32 *d_scryptV0_buf, __global u32 *d_scryptV1_buf, __global u32 *d_scryptV2_buf, __global u32 *d_scryptV3_buf, const u32 bitmap_mask, const u32 bitmap_shift1, const u32 bitmap_shift2, const u32 salt_pos, const u32 loop_pos, const u32 loop_cnt, const u32 il_cnt, const u32 digests_cnt, const u32 digests_offset)
+__kernel void m05500_sxx (__global pw_t *pws, __global const kernel_rule_t *rules_buf, __global const pw_t *combs_buf, __constant const u32x *words_buf_r, __global void *tmps, __global void *hooks, __global const u32 *bitmaps_buf_s1_a, __global const u32 *bitmaps_buf_s1_b, __global const u32 *bitmaps_buf_s1_c, __global const u32 *bitmaps_buf_s1_d, __global const u32 *bitmaps_buf_s2_a, __global const u32 *bitmaps_buf_s2_b, __global const u32 *bitmaps_buf_s2_c, __global const u32 *bitmaps_buf_s2_d, __global plain_t *plains_buf, __global const digest_t *digests_buf, __global u32 *hashes_shown, __global const salt_t *salt_bufs, __global const void *esalt_bufs, __global u32 *d_return_buf, __global u32 *d_scryptV0_buf, __global u32 *d_scryptV1_buf, __global u32 *d_scryptV2_buf, __global u32 *d_scryptV3_buf, const u32 bitmap_mask, const u32 bitmap_shift1, const u32 bitmap_shift2, const u32 salt_pos, const u32 loop_pos, const u32 loop_cnt, const u32 il_cnt, const u32 digests_cnt, const u32 digests_offset, const u32 combs_mode, const u64 gid_max)
 {
   /**
    * modifier
    */
 
-  const u32 gid = get_global_id (0);
-  const u32 lid = get_local_id (0);
+  const u64 gid = get_global_id (0);
+  const u64 lid = get_local_id (0);
+  const u64 lsz = get_local_size (0);
 
   /**
-   * salt
+   * sbox, kbox
    */
 
-  const u32 s0 = salt_bufs[salt_pos].salt_buf[0];
-  const u32 s1 = salt_bufs[salt_pos].salt_buf[1];
-  const u32 s2 = salt_bufs[salt_pos].salt_buf[2];
+  __local u32 s_SPtrans[8][64];
+  __local u32 s_skb[8][64];
+
+  for (u32 i = lid; i < 64; i += lsz)
+  {
+    s_SPtrans[0][i] = c_SPtrans[0][i];
+    s_SPtrans[1][i] = c_SPtrans[1][i];
+    s_SPtrans[2][i] = c_SPtrans[2][i];
+    s_SPtrans[3][i] = c_SPtrans[3][i];
+    s_SPtrans[4][i] = c_SPtrans[4][i];
+    s_SPtrans[5][i] = c_SPtrans[5][i];
+    s_SPtrans[6][i] = c_SPtrans[6][i];
+    s_SPtrans[7][i] = c_SPtrans[7][i];
+
+    s_skb[0][i] = c_skb[0][i];
+    s_skb[1][i] = c_skb[1][i];
+    s_skb[2][i] = c_skb[2][i];
+    s_skb[3][i] = c_skb[3][i];
+    s_skb[4][i] = c_skb[4][i];
+    s_skb[5][i] = c_skb[5][i];
+    s_skb[6][i] = c_skb[6][i];
+    s_skb[7][i] = c_skb[7][i];
+  }
+
+  barrier (CLK_LOCAL_MEM_FENCE);
+
+  if (gid >= gid_max) return;
 
   /**
    * digest
@@ -673,10 +677,31 @@ void m05500s (__local u32 (*s_SPtrans)[64], __local u32 (*s_skb)[64], u32 w[16],
   };
 
   /**
+   * salt
+   */
+
+  const u32 s0 = salt_bufs[salt_pos].salt_buf[0];
+  const u32 s1 = salt_bufs[salt_pos].salt_buf[1];
+  const u32 s2 = salt_bufs[salt_pos].salt_buf[2];
+
+  /**
+   * base
+   */
+
+  const u32 pw_len = pws[gid].pw_len;
+
+  u32x w[64] = { 0 };
+
+  for (int i = 0, idx = 0; i < pw_len; i += 4, idx += 1)
+  {
+    w[idx] = pws[gid].i[idx];
+  }
+
+  /**
    * loop
    */
 
-  u32 w0l = w[0];
+  u32x w0l = w[0];
 
   for (u32 il_pos = 0; il_pos < il_cnt; il_pos += VECT_SIZE)
   {
@@ -684,91 +709,22 @@ void m05500s (__local u32 (*s_SPtrans)[64], __local u32 (*s_skb)[64], u32 w[16],
 
     const u32x w0 = w0l | w0r;
 
-    u32x w0_t[4];
-    u32x w1_t[4];
-    u32x w2_t[4];
-    u32x w3_t[4];
+    w[0] = w0;
 
-    w0_t[0] = w0;
-    w0_t[1] = w[ 1];
-    w0_t[2] = w[ 2];
-    w0_t[3] = w[ 3];
-    w1_t[0] = w[ 4];
-    w1_t[1] = w[ 5];
-    w1_t[2] = w[ 6];
-    w1_t[3] = w[ 7];
-    w2_t[0] = w[ 8];
-    w2_t[1] = w[ 9];
-    w2_t[2] = w[10];
-    w2_t[3] = w[11];
-    w3_t[0] = w[12];
-    w3_t[1] = w[13];
-    w3_t[2] = w[14];
-    w3_t[3] = w[15];
+    md4_ctx_vector_t ctx;
 
-    u32x a = MD4M_A;
-    u32x b = MD4M_B;
-    u32x c = MD4M_C;
-    u32x d = MD4M_D;
+    md4_init_vector (&ctx);
 
-    MD4_STEP (MD4_Fo, a, b, c, d, w0_t[0], MD4C00, MD4S00);
-    MD4_STEP (MD4_Fo, d, a, b, c, w0_t[1], MD4C00, MD4S01);
-    MD4_STEP (MD4_Fo, c, d, a, b, w0_t[2], MD4C00, MD4S02);
-    MD4_STEP (MD4_Fo, b, c, d, a, w0_t[3], MD4C00, MD4S03);
-    MD4_STEP (MD4_Fo, a, b, c, d, w1_t[0], MD4C00, MD4S00);
-    MD4_STEP (MD4_Fo, d, a, b, c, w1_t[1], MD4C00, MD4S01);
-    MD4_STEP (MD4_Fo, c, d, a, b, w1_t[2], MD4C00, MD4S02);
-    MD4_STEP (MD4_Fo, b, c, d, a, w1_t[3], MD4C00, MD4S03);
-    MD4_STEP (MD4_Fo, a, b, c, d, w2_t[0], MD4C00, MD4S00);
-    MD4_STEP (MD4_Fo, d, a, b, c, w2_t[1], MD4C00, MD4S01);
-    MD4_STEP (MD4_Fo, c, d, a, b, w2_t[2], MD4C00, MD4S02);
-    MD4_STEP (MD4_Fo, b, c, d, a, w2_t[3], MD4C00, MD4S03);
-    MD4_STEP (MD4_Fo, a, b, c, d, w3_t[0], MD4C00, MD4S00);
-    MD4_STEP (MD4_Fo, d, a, b, c, w3_t[1], MD4C00, MD4S01);
-    MD4_STEP (MD4_Fo, c, d, a, b, w3_t[2], MD4C00, MD4S02);
-    MD4_STEP (MD4_Fo, b, c, d, a, w3_t[3], MD4C00, MD4S03);
+    md4_update_vector_utf16le (&ctx, w, pw_len);
 
-    MD4_STEP (MD4_Go, a, b, c, d, w0_t[0], MD4C01, MD4S10);
-    MD4_STEP (MD4_Go, d, a, b, c, w1_t[0], MD4C01, MD4S11);
-    MD4_STEP (MD4_Go, c, d, a, b, w2_t[0], MD4C01, MD4S12);
-    MD4_STEP (MD4_Go, b, c, d, a, w3_t[0], MD4C01, MD4S13);
-    MD4_STEP (MD4_Go, a, b, c, d, w0_t[1], MD4C01, MD4S10);
-    MD4_STEP (MD4_Go, d, a, b, c, w1_t[1], MD4C01, MD4S11);
-    MD4_STEP (MD4_Go, c, d, a, b, w2_t[1], MD4C01, MD4S12);
-    MD4_STEP (MD4_Go, b, c, d, a, w3_t[1], MD4C01, MD4S13);
-    MD4_STEP (MD4_Go, a, b, c, d, w0_t[2], MD4C01, MD4S10);
-    MD4_STEP (MD4_Go, d, a, b, c, w1_t[2], MD4C01, MD4S11);
-    MD4_STEP (MD4_Go, c, d, a, b, w2_t[2], MD4C01, MD4S12);
-    MD4_STEP (MD4_Go, b, c, d, a, w3_t[2], MD4C01, MD4S13);
-    MD4_STEP (MD4_Go, a, b, c, d, w0_t[3], MD4C01, MD4S10);
-    MD4_STEP (MD4_Go, d, a, b, c, w1_t[3], MD4C01, MD4S11);
-    MD4_STEP (MD4_Go, c, d, a, b, w2_t[3], MD4C01, MD4S12);
-    MD4_STEP (MD4_Go, b, c, d, a, w3_t[3], MD4C01, MD4S13);
+    md4_final_vector (&ctx);
 
-    MD4_STEP (MD4_H , a, b, c, d, w0_t[0], MD4C02, MD4S20);
-    MD4_STEP (MD4_H , d, a, b, c, w2_t[0], MD4C02, MD4S21);
-    MD4_STEP (MD4_H , c, d, a, b, w1_t[0], MD4C02, MD4S22);
-    MD4_STEP (MD4_H , b, c, d, a, w3_t[0], MD4C02, MD4S23);
-    MD4_STEP (MD4_H , a, b, c, d, w0_t[2], MD4C02, MD4S20);
-    MD4_STEP (MD4_H , d, a, b, c, w2_t[2], MD4C02, MD4S21);
-    MD4_STEP (MD4_H , c, d, a, b, w1_t[2], MD4C02, MD4S22);
-    MD4_STEP (MD4_H , b, c, d, a, w3_t[2], MD4C02, MD4S23);
-    MD4_STEP (MD4_H , a, b, c, d, w0_t[1], MD4C02, MD4S20);
-    MD4_STEP (MD4_H , d, a, b, c, w2_t[1], MD4C02, MD4S21);
-    MD4_STEP (MD4_H , c, d, a, b, w1_t[1], MD4C02, MD4S22);
-    MD4_STEP (MD4_H , b, c, d, a, w3_t[1], MD4C02, MD4S23);
-    MD4_STEP (MD4_H , a, b, c, d, w0_t[3], MD4C02, MD4S20);
-    MD4_STEP (MD4_H , d, a, b, c, w2_t[3], MD4C02, MD4S21);
+    const u32x a = ctx.h[0];
+    const u32x b = ctx.h[1];
+    const u32x c = ctx.h[2];
+    const u32x d = ctx.h[3];
 
-    if (MATCHES_NONE_VS (((d + MD4M_D) >> 16), s2)) continue;
-
-    MD4_STEP (MD4_H , c, d, a, b, w1_t[3], MD4C02, MD4S22);
-    MD4_STEP (MD4_H , b, c, d, a, w3_t[3], MD4C02, MD4S23);
-
-    a += MD4M_A;
-    b += MD4M_B;
-    c += MD4M_C;
-    d += MD4M_D;
+    if (MATCHES_NONE_VS ((d >> 16), s2)) continue;
 
     /**
      * DES1
@@ -788,9 +744,9 @@ void m05500s (__local u32 (*s_SPtrans)[64], __local u32 (*s_skb)[64], u32 w[16],
     data[0] = s0;
     data[1] = s1;
 
-    u32x iv1[2];
+    u32x out1[2];
 
-    _des_crypt_encrypt (iv1, data, Kc, Kd, s_SPtrans);
+    _des_crypt_encrypt (out1, data, Kc, Kd, s_SPtrans);
 
     /**
      * DES2
@@ -801,324 +757,16 @@ void m05500s (__local u32 (*s_SPtrans)[64], __local u32 (*s_skb)[64], u32 w[16],
 
     _des_crypt_keysetup (key[0], key[1], Kc, Kd, s_skb);
 
-    u32x iv2[2];
+    u32x out2[2];
 
-    _des_crypt_encrypt (iv2, data, Kc, Kd, s_SPtrans);
+    _des_crypt_encrypt (out2, data, Kc, Kd, s_SPtrans);
     */
 
-    u32x iv2[2];
+    const u32x r0 = out1[0];
+    const u32x r1 = out1[1];
+    const u32x r2 = search[2];
+    const u32x r3 = search[3];
 
-    iv2[0] = search[2];
-    iv2[1] = search[3];
-
-    /**
-     * compare
-     */
-
-    COMPARE_S_SIMD (iv1[0], iv1[1], iv2[0], iv2[1]);
+    COMPARE_S_SIMD (r0, r1, r2, r3);
   }
-}
-
-__kernel void m05500_m04 (__global pw_t *pws, __global const kernel_rule_t *rules_buf, __global const comb_t *combs_buf, __global const u32x *words_buf_r, __global void *tmps, __global void *hooks, __global const u32 *bitmaps_buf_s1_a, __global const u32 *bitmaps_buf_s1_b, __global const u32 *bitmaps_buf_s1_c, __global const u32 *bitmaps_buf_s1_d, __global const u32 *bitmaps_buf_s2_a, __global const u32 *bitmaps_buf_s2_b, __global const u32 *bitmaps_buf_s2_c, __global const u32 *bitmaps_buf_s2_d, __global plain_t *plains_buf, __global const digest_t *digests_buf, __global u32 *hashes_shown, __global const salt_t *salt_bufs, __global const void *esalt_bufs, __global u32 *d_return_buf, __global u32 *d_scryptV0_buf, __global u32 *d_scryptV1_buf, __global u32 *d_scryptV2_buf, __global u32 *d_scryptV3_buf, const u32 bitmap_mask, const u32 bitmap_shift1, const u32 bitmap_shift2, const u32 salt_pos, const u32 loop_pos, const u32 loop_cnt, const u32 il_cnt, const u32 digests_cnt, const u32 digests_offset, const u32 combs_mode, const u32 gid_max)
-{
-  /**
-   * modifier
-   */
-
-  const u32 gid = get_global_id (0);
-  const u32 lid = get_local_id (0);
-  const u32 lsz = get_local_size (0);
-
-  /**
-   * sbox, kbox
-   */
-
-  __local u32 s_SPtrans[8][64];
-  __local u32 s_skb[8][64];
-
-  for (u32 i = lid; i < 64; i += lsz)
-  {
-    s_SPtrans[0][i] = c_SPtrans[0][i];
-    s_SPtrans[1][i] = c_SPtrans[1][i];
-    s_SPtrans[2][i] = c_SPtrans[2][i];
-    s_SPtrans[3][i] = c_SPtrans[3][i];
-    s_SPtrans[4][i] = c_SPtrans[4][i];
-    s_SPtrans[5][i] = c_SPtrans[5][i];
-    s_SPtrans[6][i] = c_SPtrans[6][i];
-    s_SPtrans[7][i] = c_SPtrans[7][i];
-
-    s_skb[0][i] = c_skb[0][i];
-    s_skb[1][i] = c_skb[1][i];
-    s_skb[2][i] = c_skb[2][i];
-    s_skb[3][i] = c_skb[3][i];
-    s_skb[4][i] = c_skb[4][i];
-    s_skb[5][i] = c_skb[5][i];
-    s_skb[6][i] = c_skb[6][i];
-    s_skb[7][i] = c_skb[7][i];
-  }
-
-  barrier (CLK_LOCAL_MEM_FENCE);
-
-  if (gid >= gid_max) return;
-
-  /**
-   * base
-   */
-
-  u32 w[16];
-
-  w[ 0] = pws[gid].i[ 0];
-  w[ 1] = pws[gid].i[ 1];
-  w[ 2] = pws[gid].i[ 2];
-  w[ 3] = pws[gid].i[ 3];
-  w[ 4] = 0;
-  w[ 5] = 0;
-  w[ 6] = 0;
-  w[ 7] = 0;
-  w[ 8] = 0;
-  w[ 9] = 0;
-  w[10] = 0;
-  w[11] = 0;
-  w[12] = 0;
-  w[13] = 0;
-  w[14] = pws[gid].i[14];
-  w[15] = 0;
-
-  const u32 pw_len = pws[gid].pw_len;
-
-  /**
-   * main
-   */
-
-  m05500m (s_SPtrans, s_skb, w, pw_len, pws, rules_buf, combs_buf, words_buf_r, tmps, hooks, bitmaps_buf_s1_a, bitmaps_buf_s1_b, bitmaps_buf_s1_c, bitmaps_buf_s1_d, bitmaps_buf_s2_a, bitmaps_buf_s2_b, bitmaps_buf_s2_c, bitmaps_buf_s2_d, plains_buf, digests_buf, hashes_shown, salt_bufs, esalt_bufs, d_return_buf, d_scryptV0_buf, d_scryptV1_buf, d_scryptV2_buf, d_scryptV3_buf, bitmap_mask, bitmap_shift1, bitmap_shift2, salt_pos, loop_pos, loop_cnt, il_cnt, digests_cnt, digests_offset);
-}
-
-__kernel void m05500_m08 (__global pw_t *pws, __global const kernel_rule_t *rules_buf, __global const comb_t *combs_buf, __global const u32x *words_buf_r, __global void *tmps, __global void *hooks, __global const u32 *bitmaps_buf_s1_a, __global const u32 *bitmaps_buf_s1_b, __global const u32 *bitmaps_buf_s1_c, __global const u32 *bitmaps_buf_s1_d, __global const u32 *bitmaps_buf_s2_a, __global const u32 *bitmaps_buf_s2_b, __global const u32 *bitmaps_buf_s2_c, __global const u32 *bitmaps_buf_s2_d, __global plain_t *plains_buf, __global const digest_t *digests_buf, __global u32 *hashes_shown, __global const salt_t *salt_bufs, __global const void *esalt_bufs, __global u32 *d_return_buf, __global u32 *d_scryptV0_buf, __global u32 *d_scryptV1_buf, __global u32 *d_scryptV2_buf, __global u32 *d_scryptV3_buf, const u32 bitmap_mask, const u32 bitmap_shift1, const u32 bitmap_shift2, const u32 salt_pos, const u32 loop_pos, const u32 loop_cnt, const u32 il_cnt, const u32 digests_cnt, const u32 digests_offset, const u32 combs_mode, const u32 gid_max)
-{
-  /**
-   * modifier
-   */
-
-  const u32 gid = get_global_id (0);
-  const u32 lid = get_local_id (0);
-  const u32 lsz = get_local_size (0);
-
-  /**
-   * sbox, kbox
-   */
-
-  __local u32 s_SPtrans[8][64];
-  __local u32 s_skb[8][64];
-
-  for (u32 i = lid; i < 64; i += lsz)
-  {
-    s_SPtrans[0][i] = c_SPtrans[0][i];
-    s_SPtrans[1][i] = c_SPtrans[1][i];
-    s_SPtrans[2][i] = c_SPtrans[2][i];
-    s_SPtrans[3][i] = c_SPtrans[3][i];
-    s_SPtrans[4][i] = c_SPtrans[4][i];
-    s_SPtrans[5][i] = c_SPtrans[5][i];
-    s_SPtrans[6][i] = c_SPtrans[6][i];
-    s_SPtrans[7][i] = c_SPtrans[7][i];
-
-    s_skb[0][i] = c_skb[0][i];
-    s_skb[1][i] = c_skb[1][i];
-    s_skb[2][i] = c_skb[2][i];
-    s_skb[3][i] = c_skb[3][i];
-    s_skb[4][i] = c_skb[4][i];
-    s_skb[5][i] = c_skb[5][i];
-    s_skb[6][i] = c_skb[6][i];
-    s_skb[7][i] = c_skb[7][i];
-  }
-
-  barrier (CLK_LOCAL_MEM_FENCE);
-
-  if (gid >= gid_max) return;
-
-  /**
-   * base
-   */
-
-  u32 w[16];
-
-  w[ 0] = pws[gid].i[ 0];
-  w[ 1] = pws[gid].i[ 1];
-  w[ 2] = pws[gid].i[ 2];
-  w[ 3] = pws[gid].i[ 3];
-  w[ 4] = pws[gid].i[ 4];
-  w[ 5] = pws[gid].i[ 5];
-  w[ 6] = pws[gid].i[ 6];
-  w[ 7] = pws[gid].i[ 7];
-  w[ 8] = 0;
-  w[ 9] = 0;
-  w[10] = 0;
-  w[11] = 0;
-  w[12] = 0;
-  w[13] = 0;
-  w[14] = pws[gid].i[14];
-  w[15] = 0;
-
-  const u32 pw_len = pws[gid].pw_len;
-
-  /**
-   * main
-   */
-
-  m05500m (s_SPtrans, s_skb, w, pw_len, pws, rules_buf, combs_buf, words_buf_r, tmps, hooks, bitmaps_buf_s1_a, bitmaps_buf_s1_b, bitmaps_buf_s1_c, bitmaps_buf_s1_d, bitmaps_buf_s2_a, bitmaps_buf_s2_b, bitmaps_buf_s2_c, bitmaps_buf_s2_d, plains_buf, digests_buf, hashes_shown, salt_bufs, esalt_bufs, d_return_buf, d_scryptV0_buf, d_scryptV1_buf, d_scryptV2_buf, d_scryptV3_buf, bitmap_mask, bitmap_shift1, bitmap_shift2, salt_pos, loop_pos, loop_cnt, il_cnt, digests_cnt, digests_offset);
-}
-
-__kernel void m05500_m16 (__global pw_t *pws, __global const kernel_rule_t *rules_buf, __global const comb_t *combs_buf, __global const u32x *words_buf_r, __global void *tmps, __global void *hooks, __global const u32 *bitmaps_buf_s1_a, __global const u32 *bitmaps_buf_s1_b, __global const u32 *bitmaps_buf_s1_c, __global const u32 *bitmaps_buf_s1_d, __global const u32 *bitmaps_buf_s2_a, __global const u32 *bitmaps_buf_s2_b, __global const u32 *bitmaps_buf_s2_c, __global const u32 *bitmaps_buf_s2_d, __global plain_t *plains_buf, __global const digest_t *digests_buf, __global u32 *hashes_shown, __global const salt_t *salt_bufs, __global const void *esalt_bufs, __global u32 *d_return_buf, __global u32 *d_scryptV0_buf, __global u32 *d_scryptV1_buf, __global u32 *d_scryptV2_buf, __global u32 *d_scryptV3_buf, const u32 bitmap_mask, const u32 bitmap_shift1, const u32 bitmap_shift2, const u32 salt_pos, const u32 loop_pos, const u32 loop_cnt, const u32 il_cnt, const u32 digests_cnt, const u32 digests_offset, const u32 combs_mode, const u32 gid_max)
-{
-}
-
-__kernel void m05500_s04 (__global pw_t *pws, __global const kernel_rule_t *rules_buf, __global const comb_t *combs_buf, __global const u32x *words_buf_r, __global void *tmps, __global void *hooks, __global const u32 *bitmaps_buf_s1_a, __global const u32 *bitmaps_buf_s1_b, __global const u32 *bitmaps_buf_s1_c, __global const u32 *bitmaps_buf_s1_d, __global const u32 *bitmaps_buf_s2_a, __global const u32 *bitmaps_buf_s2_b, __global const u32 *bitmaps_buf_s2_c, __global const u32 *bitmaps_buf_s2_d, __global plain_t *plains_buf, __global const digest_t *digests_buf, __global u32 *hashes_shown, __global const salt_t *salt_bufs, __global const void *esalt_bufs, __global u32 *d_return_buf, __global u32 *d_scryptV0_buf, __global u32 *d_scryptV1_buf, __global u32 *d_scryptV2_buf, __global u32 *d_scryptV3_buf, const u32 bitmap_mask, const u32 bitmap_shift1, const u32 bitmap_shift2, const u32 salt_pos, const u32 loop_pos, const u32 loop_cnt, const u32 il_cnt, const u32 digests_cnt, const u32 digests_offset, const u32 combs_mode, const u32 gid_max)
-{
-  /**
-   * modifier
-   */
-
-  const u32 gid = get_global_id (0);
-  const u32 lid = get_local_id (0);
-  const u32 lsz = get_local_size (0);
-
-  /**
-   * sbox, kbox
-   */
-
-  __local u32 s_SPtrans[8][64];
-  __local u32 s_skb[8][64];
-
-  for (u32 i = lid; i < 64; i += lsz)
-  {
-    s_SPtrans[0][i] = c_SPtrans[0][i];
-    s_SPtrans[1][i] = c_SPtrans[1][i];
-    s_SPtrans[2][i] = c_SPtrans[2][i];
-    s_SPtrans[3][i] = c_SPtrans[3][i];
-    s_SPtrans[4][i] = c_SPtrans[4][i];
-    s_SPtrans[5][i] = c_SPtrans[5][i];
-    s_SPtrans[6][i] = c_SPtrans[6][i];
-    s_SPtrans[7][i] = c_SPtrans[7][i];
-
-    s_skb[0][i] = c_skb[0][i];
-    s_skb[1][i] = c_skb[1][i];
-    s_skb[2][i] = c_skb[2][i];
-    s_skb[3][i] = c_skb[3][i];
-    s_skb[4][i] = c_skb[4][i];
-    s_skb[5][i] = c_skb[5][i];
-    s_skb[6][i] = c_skb[6][i];
-    s_skb[7][i] = c_skb[7][i];
-  }
-
-  barrier (CLK_LOCAL_MEM_FENCE);
-
-  if (gid >= gid_max) return;
-
-  /**
-   * base
-   */
-
-  u32 w[16];
-
-  w[ 0] = pws[gid].i[ 0];
-  w[ 1] = pws[gid].i[ 1];
-  w[ 2] = pws[gid].i[ 2];
-  w[ 3] = pws[gid].i[ 3];
-  w[ 4] = 0;
-  w[ 5] = 0;
-  w[ 6] = 0;
-  w[ 7] = 0;
-  w[ 8] = 0;
-  w[ 9] = 0;
-  w[10] = 0;
-  w[11] = 0;
-  w[12] = 0;
-  w[13] = 0;
-  w[14] = pws[gid].i[14];
-  w[15] = 0;
-
-  const u32 pw_len = pws[gid].pw_len;
-
-  /**
-   * main
-   */
-
-  m05500s (s_SPtrans, s_skb, w, pw_len, pws, rules_buf, combs_buf, words_buf_r, tmps, hooks, bitmaps_buf_s1_a, bitmaps_buf_s1_b, bitmaps_buf_s1_c, bitmaps_buf_s1_d, bitmaps_buf_s2_a, bitmaps_buf_s2_b, bitmaps_buf_s2_c, bitmaps_buf_s2_d, plains_buf, digests_buf, hashes_shown, salt_bufs, esalt_bufs, d_return_buf, d_scryptV0_buf, d_scryptV1_buf, d_scryptV2_buf, d_scryptV3_buf, bitmap_mask, bitmap_shift1, bitmap_shift2, salt_pos, loop_pos, loop_cnt, il_cnt, digests_cnt, digests_offset);
-}
-
-__kernel void m05500_s08 (__global pw_t *pws, __global const kernel_rule_t *rules_buf, __global const comb_t *combs_buf, __global const u32x *words_buf_r, __global void *tmps, __global void *hooks, __global const u32 *bitmaps_buf_s1_a, __global const u32 *bitmaps_buf_s1_b, __global const u32 *bitmaps_buf_s1_c, __global const u32 *bitmaps_buf_s1_d, __global const u32 *bitmaps_buf_s2_a, __global const u32 *bitmaps_buf_s2_b, __global const u32 *bitmaps_buf_s2_c, __global const u32 *bitmaps_buf_s2_d, __global plain_t *plains_buf, __global const digest_t *digests_buf, __global u32 *hashes_shown, __global const salt_t *salt_bufs, __global const void *esalt_bufs, __global u32 *d_return_buf, __global u32 *d_scryptV0_buf, __global u32 *d_scryptV1_buf, __global u32 *d_scryptV2_buf, __global u32 *d_scryptV3_buf, const u32 bitmap_mask, const u32 bitmap_shift1, const u32 bitmap_shift2, const u32 salt_pos, const u32 loop_pos, const u32 loop_cnt, const u32 il_cnt, const u32 digests_cnt, const u32 digests_offset, const u32 combs_mode, const u32 gid_max)
-{
-  /**
-   * modifier
-   */
-
-  const u32 gid = get_global_id (0);
-  const u32 lid = get_local_id (0);
-  const u32 lsz = get_local_size (0);
-
-  /**
-   * sbox, kbox
-   */
-
-  __local u32 s_SPtrans[8][64];
-  __local u32 s_skb[8][64];
-
-  for (u32 i = lid; i < 64; i += lsz)
-  {
-    s_SPtrans[0][i] = c_SPtrans[0][i];
-    s_SPtrans[1][i] = c_SPtrans[1][i];
-    s_SPtrans[2][i] = c_SPtrans[2][i];
-    s_SPtrans[3][i] = c_SPtrans[3][i];
-    s_SPtrans[4][i] = c_SPtrans[4][i];
-    s_SPtrans[5][i] = c_SPtrans[5][i];
-    s_SPtrans[6][i] = c_SPtrans[6][i];
-    s_SPtrans[7][i] = c_SPtrans[7][i];
-
-    s_skb[0][i] = c_skb[0][i];
-    s_skb[1][i] = c_skb[1][i];
-    s_skb[2][i] = c_skb[2][i];
-    s_skb[3][i] = c_skb[3][i];
-    s_skb[4][i] = c_skb[4][i];
-    s_skb[5][i] = c_skb[5][i];
-    s_skb[6][i] = c_skb[6][i];
-    s_skb[7][i] = c_skb[7][i];
-  }
-
-  barrier (CLK_LOCAL_MEM_FENCE);
-
-  if (gid >= gid_max) return;
-
-  /**
-   * base
-   */
-
-  u32 w[16];
-
-  w[ 0] = pws[gid].i[ 0];
-  w[ 1] = pws[gid].i[ 1];
-  w[ 2] = pws[gid].i[ 2];
-  w[ 3] = pws[gid].i[ 3];
-  w[ 4] = pws[gid].i[ 4];
-  w[ 5] = pws[gid].i[ 5];
-  w[ 6] = pws[gid].i[ 6];
-  w[ 7] = pws[gid].i[ 7];
-  w[ 8] = 0;
-  w[ 9] = 0;
-  w[10] = 0;
-  w[11] = 0;
-  w[12] = 0;
-  w[13] = 0;
-  w[14] = pws[gid].i[14];
-  w[15] = 0;
-
-  const u32 pw_len = pws[gid].pw_len;
-
-  /**
-   * main
-   */
-
-  m05500s (s_SPtrans, s_skb, w, pw_len, pws, rules_buf, combs_buf, words_buf_r, tmps, hooks, bitmaps_buf_s1_a, bitmaps_buf_s1_b, bitmaps_buf_s1_c, bitmaps_buf_s1_d, bitmaps_buf_s2_a, bitmaps_buf_s2_b, bitmaps_buf_s2_c, bitmaps_buf_s2_d, plains_buf, digests_buf, hashes_shown, salt_bufs, esalt_bufs, d_return_buf, d_scryptV0_buf, d_scryptV1_buf, d_scryptV2_buf, d_scryptV3_buf, bitmap_mask, bitmap_shift1, bitmap_shift2, salt_pos, loop_pos, loop_cnt, il_cnt, digests_cnt, digests_offset);
-}
-
-__kernel void m05500_s16 (__global pw_t *pws, __global const kernel_rule_t *rules_buf, __global const comb_t *combs_buf, __global const u32x *words_buf_r, __global void *tmps, __global void *hooks, __global const u32 *bitmaps_buf_s1_a, __global const u32 *bitmaps_buf_s1_b, __global const u32 *bitmaps_buf_s1_c, __global const u32 *bitmaps_buf_s1_d, __global const u32 *bitmaps_buf_s2_a, __global const u32 *bitmaps_buf_s2_b, __global const u32 *bitmaps_buf_s2_c, __global const u32 *bitmaps_buf_s2_d, __global plain_t *plains_buf, __global const digest_t *digests_buf, __global u32 *hashes_shown, __global const salt_t *salt_bufs, __global const void *esalt_bufs, __global u32 *d_return_buf, __global u32 *d_scryptV0_buf, __global u32 *d_scryptV1_buf, __global u32 *d_scryptV2_buf, __global u32 *d_scryptV3_buf, const u32 bitmap_mask, const u32 bitmap_shift1, const u32 bitmap_shift2, const u32 salt_pos, const u32 loop_pos, const u32 loop_cnt, const u32 il_cnt, const u32 digests_cnt, const u32 digests_offset, const u32 combs_mode, const u32 gid_max)
-{
 }

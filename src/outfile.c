@@ -13,6 +13,7 @@
 #include "mpsp.h"
 #include "rp.h"
 #include "rp_kernel_on_cpu.h"
+#include "rp_kernel_on_cpu_optimized.h"
 #include "opencl.h"
 #include "shared.h"
 #include "outfile.h"
@@ -42,16 +43,26 @@ int build_plain (hashcat_ctx_t *hashcat_ctx, hc_device_param_t *device_param, pl
 
     if (rc == -1) return -1;
 
-    for (int i = 0; i < 16; i++)
-    {
-      plain_buf[i] = pw.i[i];
-    }
-
-    plain_len = (int) pw.pw_len;
-
     const u32 off = device_param->innerloop_pos + il_pos;
 
-    plain_len = (int) apply_rules (straight_ctx->kernel_rules_buf[off].cmds, &plain_buf[0], &plain_buf[4], (u32) plain_len);
+    if (hashconfig->opti_type & OPTI_TYPE_OPTIMIZED_KERNEL)
+    {
+      for (int i = 0; i < 8; i++)
+      {
+        plain_buf[i] = pw.i[i];
+      }
+
+      plain_len = apply_rules_optimized (straight_ctx->kernel_rules_buf[off].cmds, &plain_buf[0], &plain_buf[4], pw.pw_len);
+    }
+    else
+    {
+      for (int i = 0; i < 64; i++)
+      {
+        plain_buf[i] = pw.i[i];
+      }
+
+      plain_len = apply_rules (straight_ctx->kernel_rules_buf[off].cmds, plain_buf, pw.pw_len);
+    }
 
     if (plain_len > (int) hashconfig->pw_max) plain_len = (int) hashconfig->pw_max;
   }
@@ -63,7 +74,7 @@ int build_plain (hashcat_ctx_t *hashcat_ctx, hc_device_param_t *device_param, pl
 
     if (rc == -1) return -1;
 
-    for (int i = 0; i < 16; i++)
+    for (int i = 0; i < 64; i++)
     {
       plain_buf[i] = pw.i[i];
     }
@@ -84,20 +95,29 @@ int build_plain (hashcat_ctx_t *hashcat_ctx, hc_device_param_t *device_param, pl
       memcpy (plain_ptr, comb_buf, comb_len);
     }
 
-    int pw_max_combi;
+    plain_len += comb_len;
 
-    if (hashconfig->pw_max < PW_DICTMAX)
+    if (hashconfig->opti_type & OPTI_TYPE_OPTIMIZED_KERNEL)
     {
-      pw_max_combi = hashconfig->pw_max;
+      int pw_max_combi;
+
+      #define PW_DICTMAX 32
+
+      if (hashconfig->pw_max < PW_DICTMAX)
+      {
+        pw_max_combi = hashconfig->pw_max;
+      }
+      else
+      {
+        pw_max_combi = PW_MAX_OLD;
+      }
+
+      plain_len = MIN ((int) plain_len, (int) pw_max_combi);
     }
     else
     {
-      pw_max_combi = PW_MAX;
+      plain_len = MIN ((int) plain_len, (int) hashconfig->pw_max);
     }
-
-    plain_len += comb_len;
-
-    if (plain_len > pw_max_combi) plain_len = pw_max_combi;
   }
   else if (user_options->attack_mode == ATTACK_MODE_BF)
   {
@@ -123,7 +143,7 @@ int build_plain (hashcat_ctx_t *hashcat_ctx, hc_device_param_t *device_param, pl
 
     if (rc == -1) return -1;
 
-    for (int i = 0; i < 16; i++)
+    for (int i = 0; i < 64; i++)
     {
       plain_buf[i] = pw.i[i];
     }
@@ -143,31 +163,60 @@ int build_plain (hashcat_ctx_t *hashcat_ctx, hc_device_param_t *device_param, pl
   }
   else if (user_options->attack_mode == ATTACK_MODE_HYBRID2)
   {
-    pw_t pw;
-
-    const int rc = gidd_to_pw_t (hashcat_ctx, device_param, gidvid, &pw);
-
-    if (rc == -1) return -1;
-
-    for (int i = 0; i < 16; i++)
+    if (hashconfig->opti_type & OPTI_TYPE_OPTIMIZED_KERNEL)
     {
-      plain_buf[i] = pw.i[i];
+      pw_t pw;
+
+      const int rc = gidd_to_pw_t (hashcat_ctx, device_param, gidvid, &pw);
+
+      if (rc == -1) return -1;
+
+      for (int i = 0; i < 64; i++)
+      {
+        plain_buf[i] = pw.i[i];
+      }
+
+      plain_len = (int) pw.pw_len;
+
+      u64 off = device_param->kernel_params_mp_buf64[3] + il_pos;
+
+      u32 start = 0;
+      u32 stop  = device_param->kernel_params_mp_buf32[4];
+
+      memmove (plain_ptr + stop, plain_ptr, plain_len);
+
+      sp_exec (off, (char *) plain_ptr, mask_ctx->root_css_buf, mask_ctx->markov_css_buf, start, start + stop);
+
+      plain_len += start + stop;
+
+      if (plain_len > (int) hashconfig->pw_max) plain_len = (int) hashconfig->pw_max;
     }
+    else
+    {
+      pw_t pw;
 
-    plain_len = (int) pw.pw_len;
+      const int rc = gidd_to_pw_t (hashcat_ctx, device_param, gidvid, &pw);
 
-    u64 off = device_param->kernel_params_mp_buf64[3] + il_pos;
+      if (rc == -1) return -1;
 
-    u32 start = 0;
-    u32 stop  = device_param->kernel_params_mp_buf32[4];
+      u64 off = device_param->kernel_params_mp_buf64[3] + gidvid;
 
-    memmove (plain_ptr + stop, plain_ptr, plain_len);
+      u32 start = 0;
+      u32 stop  = device_param->kernel_params_mp_buf32[4];
 
-    sp_exec (off, (char *) plain_ptr, mask_ctx->root_css_buf, mask_ctx->markov_css_buf, start, start + stop);
+      sp_exec (off, (char *) plain_ptr, mask_ctx->root_css_buf, mask_ctx->markov_css_buf, start, start + stop);
 
-    plain_len += start + stop;
+      plain_len = stop;
 
-    if (plain_len > (int) hashconfig->pw_max) plain_len = (int) hashconfig->pw_max;
+      char *comb_buf = (char *) device_param->combs_buf[il_pos].i;
+      u32   comb_len =          device_param->combs_buf[il_pos].pw_len;
+
+      memcpy (plain_ptr + plain_len, comb_buf, comb_len);
+
+      plain_len += comb_len;
+
+      if (plain_len > (int) hashconfig->pw_max) plain_len = (int) hashconfig->pw_max;
+    }
   }
 
   if (user_options->attack_mode == ATTACK_MODE_BF)
@@ -449,8 +498,8 @@ int outfile_write (hashcat_ctx_t *hashcat_ctx, const char *out_buf, const unsign
 
   if (outfile_ctx->fp != NULL)
   {
-    fwrite (tmp_buf, tmp_len,      1, outfile_ctx->fp);
-    fwrite (EOL,     strlen (EOL), 1, outfile_ctx->fp);
+    hc_fwrite (tmp_buf, tmp_len,      1, outfile_ctx->fp);
+    hc_fwrite (EOL,     strlen (EOL), 1, outfile_ctx->fp);
   }
 
   return tmp_len;

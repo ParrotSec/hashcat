@@ -13,6 +13,7 @@
 #include "shared.h"
 #include "thread.h"
 #include "filehandling.h"
+#include "rp.h"
 #include "rp_cpu.h"
 #include "dispatch.h"
 
@@ -68,7 +69,11 @@ static u32 get_power (opencl_ctx_t *opencl_ctx, hc_device_param_t *device_param)
 
     const u64 work = MAX (words_left_device, device_param->hardware_power);
 
-    return work;
+    // we need to make sure the value is not larger than the regular kernel_power
+
+    const u64 work_final = MIN (work, device_param->kernel_power);
+
+    return work_final;
   }
 
   return device_param->kernel_power;
@@ -125,11 +130,11 @@ static int calc_stdin (hashcat_ctx_t *hashcat_ctx, hc_device_param_t *device_par
 
   bool iconv_enabled = false;
 
-  iconv_t iconv_ctx;
+  iconv_t iconv_ctx = NULL;
 
   char *iconv_tmp = NULL;
 
-  if (strcmp (user_options->encoding_from, user_options->encoding_to))
+  if (strcmp (user_options->encoding_from, user_options->encoding_to) != 0)
   {
     iconv_enabled = true;
 
@@ -153,6 +158,8 @@ static int calc_stdin (hashcat_ctx_t *hashcat_ctx, hc_device_param_t *device_par
 
     u32 words_extra_total = 0;
 
+    memset (device_param->pws_buf, 0, device_param->size_pws);
+
     while (device_param->pws_cnt < device_param->kernel_power)
     {
       char *line_buf = fgets (buf, HCBUFSIZ_LARGE - 1, stdin);
@@ -172,42 +179,31 @@ static int calc_stdin (hashcat_ctx_t *hashcat_ctx, hc_device_param_t *device_par
 
         const size_t iconv_rc = iconv (iconv_ctx, &line_buf, &line_len, &iconv_ptr, &iconv_sz);
 
-        if (iconv_rc == (size_t) -1)
-        {
-          line_len = PW_MAX1;
-        }
-        else
-        {
-          line_buf = iconv_tmp;
-          line_len = HCBUFSIZ_TINY - iconv_sz;
-        }
+        if (iconv_rc == (size_t) -1) continue;
+
+        line_buf = iconv_tmp;
+        line_len = HCBUFSIZ_TINY - iconv_sz;
       }
 
       // post-process rule engine
 
-      char rule_buf_out[BLOCK_SIZE];
+      char rule_buf_out[RP_PASSWORD_SIZE];
 
       if (run_rule_engine ((int) user_options_extra->rule_len_l, user_options->rule_buf_l))
       {
+        if (line_len >= RP_PASSWORD_SIZE) continue;
+
         memset (rule_buf_out, 0, sizeof (rule_buf_out));
 
-        int rule_len_out = -1;
-
-        if (line_len < BLOCK_SIZE)
-        {
-          rule_len_out = _old_apply_rule (user_options->rule_buf_l, (int) user_options_extra->rule_len_l, line_buf, (int) line_len, rule_buf_out);
-        }
+        const int rule_len_out = _old_apply_rule (user_options->rule_buf_l, (int) user_options_extra->rule_len_l, line_buf, (int) line_len, rule_buf_out);
 
         if (rule_len_out < 0) continue;
 
         line_buf = rule_buf_out;
-        line_len = (u32) rule_len_out;
+        line_len = (size_t) rule_len_out;
       }
 
-      if (line_len > PW_MAX)
-      {
-        continue;
-      }
+      if (line_len >= PW_MAX) continue;
 
       // hmm that's always the case, or?
 
@@ -282,8 +278,6 @@ static int calc_stdin (hashcat_ctx_t *hashcat_ctx, hc_device_param_t *device_par
   {
     iconv_close (iconv_ctx);
 
-    iconv_enabled = false;
-
     hcfree (iconv_tmp);
   }
 
@@ -324,8 +318,24 @@ static int calc (hashcat_ctx_t *hashcat_ctx, hc_device_param_t *device_param)
   const u32 attack_mode = user_options->attack_mode;
   const u32 attack_kern = user_options_extra->attack_kern;
 
-  if (attack_mode == ATTACK_MODE_BF)
+  if ((attack_mode == ATTACK_MODE_BF) || (((hashconfig->opti_type & OPTI_TYPE_OPTIMIZED_KERNEL) == 0) && (attack_mode == ATTACK_MODE_HYBRID2)))
   {
+    if (((hashconfig->opti_type & OPTI_TYPE_OPTIMIZED_KERNEL) == 0) && (attack_mode == ATTACK_MODE_HYBRID2))
+    {
+      char *dictfile = straight_ctx->dict;
+
+      FILE *combs_fp = fopen (dictfile, "rb");
+
+      if (combs_fp == NULL)
+      {
+        event_log_error (hashcat_ctx, "%s: %s", dictfile, strerror (errno));
+
+        return -1;
+      }
+
+      device_param->combs_fp = combs_fp;
+    }
+
     while (status_ctx->run_thread_level1 == true)
     {
       const u32 work = get_work (hashcat_ctx, device_param, -1u);
@@ -477,6 +487,8 @@ static int calc (hashcat_ctx_t *hashcat_ctx, hc_device_param_t *device_param)
 
       u32 words_extra_total = 0;
 
+      memset (device_param->pws_buf, 0, device_param->size_pws);
+
       while (words_extra)
       {
         const u32 work = get_work (hashcat_ctx, device_param, words_extra);
@@ -491,7 +503,7 @@ static int calc (hashcat_ctx_t *hashcat_ctx, hc_device_param_t *device_param)
         char *line_buf;
         u32   line_len;
 
-        char rule_buf_out[BLOCK_SIZE];
+        char rule_buf_out[RP_PASSWORD_SIZE];
 
         for ( ; words_cur < words_off; words_cur++) get_next_word (hashcat_ctx_tmp, fd, &line_buf, &line_len);
 
@@ -505,14 +517,11 @@ static int calc (hashcat_ctx_t *hashcat_ctx, hc_device_param_t *device_param)
 
           if (run_rule_engine ((int) user_options_extra->rule_len_l, user_options->rule_buf_l))
           {
+            if (line_len >= RP_PASSWORD_SIZE) continue;
+
             memset (rule_buf_out, 0, sizeof (rule_buf_out));
 
-            int rule_len_out = -1;
-
-            if (line_len < BLOCK_SIZE)
-            {
-              rule_len_out = _old_apply_rule (user_options->rule_buf_l, (int) user_options_extra->rule_len_l, line_buf, (int) line_len, rule_buf_out);
-            }
+            const int rule_len_out = _old_apply_rule (user_options->rule_buf_l, (int) user_options_extra->rule_len_l, line_buf, (int) line_len, rule_buf_out);
 
             if (rule_len_out < 0) continue;
 
@@ -560,7 +569,14 @@ static int calc (hashcat_ctx_t *hashcat_ctx, hc_device_param_t *device_param)
 
         for (u32 salt_pos = 0; salt_pos < hashes->salts_cnt; salt_pos++)
         {
-          status_ctx->words_progress_rejected[salt_pos] += words_extra_total * straight_ctx->kernel_rules_cnt;
+          if (attack_kern == ATTACK_KERN_STRAIGHT)
+          {
+            status_ctx->words_progress_rejected[salt_pos] += words_extra_total * straight_ctx->kernel_rules_cnt;
+          }
+          else if (attack_kern == ATTACK_KERN_COMBI)
+          {
+            status_ctx->words_progress_rejected[salt_pos] += words_extra_total * combinator_ctx->combs_cnt;
+          }
         }
 
         hc_thread_mutex_unlock (status_ctx->mux_counter);

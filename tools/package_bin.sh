@@ -6,7 +6,7 @@
 ##
 
 export IN=$HOME/hashcat
-export OUT=$HOME/xy/hashcat-3.6.0
+export OUT=$HOME/xy/hashcat-4.0.1
 
 rm -rf $OUT
 rm -rf $OUT.7z
@@ -15,8 +15,8 @@ mkdir -p $OUT
 
 cp    $IN/hashcat??.exe                 $OUT/
 cp    $IN/hashcat??.bin                 $OUT/
-cp    $IN/hashcat.hcstat                $OUT/
 cp    $IN/hashcat.hctune                $OUT/
+cp    $IN/hashcat.hcstat2               $OUT/
 
 cp -r $IN/docs                          $OUT/
 cp -r $IN/charsets                      $OUT/
@@ -24,8 +24,8 @@ cp -r $IN/masks                         $OUT/
 cp -r $IN/rules                         $OUT/
 cp -r $IN/extra                         $OUT/
 cp    $IN/example.dict                  $OUT/
-cp    $IN/example[0123456789]*.hash	$OUT/
-cp    $IN/example[0123456789]*.cmd	$OUT/
+cp    $IN/example[0123456789]*.hash     $OUT/
+cp    $IN/example[0123456789]*.cmd      $OUT/
 cp -r $IN/OpenCL                        $OUT/
 
 # since for the binary distribution we still use .bin, we need to rewrite the commands
@@ -69,7 +69,7 @@ chmod 755 $OUT/OpenCL
 chmod 644 $OUT/OpenCL/*
 chmod 644 $OUT/*.exe
 chmod 755 $OUT/*.bin
-chmod 644 $OUT/hashcat.hcstat
 chmod 644 $OUT/hashcat.hctune
+chmod 644 $OUT/hashcat.hcstat2
 
 time 7z a -t7z -m0=lzma2:d31 -mx=9 -mmt=8 -ms=on $OUT.7z $OUT

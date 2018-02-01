@@ -6,7 +6,7 @@
 #include "common.h"
 #include "benchmark.h"
 
-const unsigned int DEFAULT_BENCHMARK_ALGORITHMS_CNT = 154;
+const unsigned int DEFAULT_BENCHMARK_ALGORITHMS_CNT = 156;
 
 const unsigned int DEFAULT_BENCHMARK_ALGORITHMS_BUF[] =
 {
@@ -35,6 +35,7 @@ const unsigned int DEFAULT_BENCHMARK_ALGORITHMS_BUF[] =
   12100,
   23,
   2500,
+  2501,
   5300,
   5400,
   5500,
@@ -86,6 +87,7 @@ const unsigned int DEFAULT_BENCHMARK_ALGORITHMS_BUF[] =
   1100,
   2100,
   15300,
+  15900,
   12800,
   1500,
   12400,

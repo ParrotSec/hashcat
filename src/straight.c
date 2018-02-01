@@ -76,14 +76,14 @@ int straight_ctx_update_loop (hashcat_ctx_t *hashcat_ctx)
 
       const int rc = count_words (hashcat_ctx, fd, straight_ctx->dict, &status_ctx->words_cnt);
 
+      fclose (fd);
+
       if (rc == -1)
       {
         event_log_error (hashcat_ctx, "Integer overflow detected in keyspace of wordlist: %s", straight_ctx->dict);
 
         return -1;
       }
-
-      fclose (fd);
 
       if (status_ctx->words_cnt == 0)
       {
@@ -111,14 +111,14 @@ int straight_ctx_update_loop (hashcat_ctx_t *hashcat_ctx)
 
       const int rc = count_words (hashcat_ctx, fd, combinator_ctx->dict1, &status_ctx->words_cnt);
 
+      fclose (fd);
+
       if (rc == -1)
       {
         event_log_error (hashcat_ctx, "Integer overflow detected in keyspace of wordlist: %s", combinator_ctx->dict1);
 
         return -1;
       }
-
-      fclose (fd);
     }
     else if (combinator_ctx->combs_mode == COMBINATOR_MODE_BASE_RIGHT)
     {
@@ -133,14 +133,14 @@ int straight_ctx_update_loop (hashcat_ctx_t *hashcat_ctx)
 
       const int rc = count_words (hashcat_ctx, fd, combinator_ctx->dict2, &status_ctx->words_cnt);
 
+      fclose (fd);
+
       if (rc == -1)
       {
         event_log_error (hashcat_ctx, "Integer overflow detected in keyspace of wordlist: %s", combinator_ctx->dict2);
 
         return -1;
       }
-
-      fclose (fd);
     }
 
     if (status_ctx->words_cnt == 0)
@@ -179,14 +179,14 @@ int straight_ctx_update_loop (hashcat_ctx_t *hashcat_ctx)
 
     const int rc = count_words (hashcat_ctx, fd, straight_ctx->dict, &status_ctx->words_cnt);
 
+    fclose (fd);
+
     if (rc == -1)
     {
       event_log_error (hashcat_ctx, "Integer overflow detected in keyspace of wordlist: %s", straight_ctx->dict);
 
       return -1;
     }
-
-    fclose (fd);
 
     if (status_ctx->words_cnt == 0)
     {
@@ -201,18 +201,18 @@ int straight_ctx_update_loop (hashcat_ctx_t *hashcat_ctx)
 
 int straight_ctx_init (hashcat_ctx_t *hashcat_ctx)
 {
-  hashconfig_t         *hashconfig          = hashcat_ctx->hashconfig;
   straight_ctx_t       *straight_ctx        = hashcat_ctx->straight_ctx;
   user_options_extra_t *user_options_extra  = hashcat_ctx->user_options_extra;
   user_options_t       *user_options        = hashcat_ctx->user_options;
 
   straight_ctx->enabled = false;
 
-  if (user_options->left        == true) return 0;
-  if (user_options->opencl_info == true) return 0;
-  if (user_options->show        == true) return 0;
-  if (user_options->usage       == true) return 0;
-  if (user_options->version     == true) return 0;
+  if (user_options->example_hashes == true) return 0;
+  if (user_options->left           == true) return 0;
+  if (user_options->opencl_info    == true) return 0;
+  if (user_options->show           == true) return 0;
+  if (user_options->usage          == true) return 0;
+  if (user_options->version        == true) return 0;
 
   if (user_options->attack_mode == ATTACK_MODE_BF) return 0;
 
@@ -245,44 +245,6 @@ int straight_ctx_init (hashcat_ctx_t *hashcat_ctx)
       if (rc_kernel_generate == -1) return -1;
     }
   }
-
-  // If we have a NOOP rule then we can process words from wordlists > length 32 for slow hashes
-
-  u32 pw_min = hashconfig->pw_min;
-  u32 pw_max = hashconfig->pw_max;
-
-  const bool has_noop = kernel_rules_has_noop (straight_ctx->kernel_rules_buf, straight_ctx->kernel_rules_cnt);
-
-  if (has_noop == false)
-  {
-    switch (user_options_extra->attack_kern)
-    {
-      case ATTACK_KERN_STRAIGHT:  if (pw_max > PW_DICTMAX) pw_max = PW_DICTMAX;
-                                  break;
-      case ATTACK_KERN_COMBI:     if (pw_max > PW_DICTMAX) pw_max = PW_DICTMAX;
-                                  break;
-    }
-  }
-  else
-  {
-    if (hashconfig->attack_exec == ATTACK_EXEC_INSIDE_KERNEL)
-    {
-      switch (user_options_extra->attack_kern)
-      {
-        case ATTACK_KERN_STRAIGHT:  if (pw_max > PW_DICTMAX) pw_max = PW_DICTMAX;
-                                    break;
-        case ATTACK_KERN_COMBI:     if (pw_max > PW_DICTMAX) pw_max = PW_DICTMAX;
-                                    break;
-      }
-    }
-    else
-    {
-      // in this case we can process > 32
-    }
-  }
-
-  hashconfig->pw_min = pw_min;
-  hashconfig->pw_max = pw_max;
 
   /**
    * wordlist based work
